@@ -18,15 +18,20 @@ namespace PoroTool
         private void ShowLootView()
         {
             viewCts?.Cancel();
+            revealListPanel = null;
+            revealPhaseLabel = null;
             featurePanel.Visible = false;
             DisposeFeatureControls();
             ImageCache.ClearSplashCache();
             outputPanel.Visible = true;
         }
 
-        private void ShowFeatureView(Action<Panel> build)
+        private void ShowFeatureView(Action<Panel> build, bool requireConnection = true)
         {
-            if (!EnsureConnected()) return;
+            if (requireConnection && !EnsureConnected()) return;
+
+            revealListPanel = null;
+            revealPhaseLabel = null;
 
             viewCts?.Cancel();
             viewCts = new CancellationTokenSource();

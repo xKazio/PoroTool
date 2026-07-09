@@ -61,13 +61,15 @@ namespace PoroTool
             lootSectionLabel.ForeColor = Theme.TextMuted;
             profileSectionLabel.Font = Theme.SectionFont;
             profileSectionLabel.ForeColor = Theme.TextMuted;
+            liveSectionLabel.Font = Theme.SectionFont;
+            liveSectionLabel.ForeColor = Theme.TextMuted;
             processSectionLabel.Font = Theme.SectionFont;
             processSectionLabel.ForeColor = Theme.TextMuted;
 
             foreach (var button in new[] { loadChampionsButton, loadSkinsButton, loadEmotesButton, loadWardsButton,
                                            loadIconsButton, loadCompanionsButton, loadEternalsButton, loadChestsButton,
                                            chatRankButton, backgroundButton, statusButton, purchaseDatesButton,
-                                           customApiButton, removeTokensButton })
+                                           customApiButton, lobbyRevealButton, removeTokensButton })
             {
                 Theme.StyleButton(button);
             }
@@ -91,6 +93,7 @@ namespace PoroTool
             league = new LeagueConnection();
             league.OnConnected += () => SetStatusSafe("Connected to the League client.", StatusKind.Success);
             league.OnDisconnected += () => SetStatusSafe("League client closed. Waiting for it to come back...", StatusKind.Error);
+            InitLive();
             SetStatus("Waiting for the League client...");
             FillProcessOptions();
         }

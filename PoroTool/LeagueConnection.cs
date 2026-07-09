@@ -17,25 +17,40 @@ namespace PoroTool
     class LeagueConnection
     {
         private readonly HttpClient http;
+        private readonly HttpClient riotHttp;
 
         private WebSocket socket;
         private string port;
+        private string riotPort;
 
         public event Action OnConnected;
         public event Action OnDisconnected;
 
+        /// <summary>Raised on the websocket thread when the gameflow phase changes
+        /// (e.g. "ReadyCheck", "ChampSelect", "InProgress").</summary>
+        public event Action<string> GameflowPhaseChanged;
+
         public bool IsConnected { get; private set; }
+
+        /// <summary>True once the Riot Client chat port was found (needed for the reveal).</summary>
+        public bool HasRiotClient => riotPort != null;
 
         public LeagueConnection()
         {
-            // The LCU uses a self-signed certificate, so validation has to be skipped.
-            http = new HttpClient(new HttpClientHandler
+            // Both local clients use a self-signed certificate, so validation has to be skipped.
+            http = new HttpClient(NewInsecureHandler());
+            riotHttp = new HttpClient(NewInsecureHandler());
+
+            Task.Delay(2000).ContinueWith(_ => TryConnectOrRetry());
+        }
+
+        private static HttpClientHandler NewInsecureHandler()
+        {
+            return new HttpClientHandler
             {
                 SslProtocols = SslProtocols.Tls12,
                 ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true
-            });
-
-            Task.Delay(2000).ContinueWith(_ => TryConnectOrRetry());
+            };
         }
 
         private void TryConnectOrRetry()
@@ -53,17 +68,29 @@ namespace PoroTool
 
                 var credentials = LeagueUtils.FindClientCredentials();
                 if (credentials == null) return;
-                var (authToken, clientPort) = credentials.Value;
+                var (authToken, clientPort, riotToken, clientRiotPort) = credentials.Value;
 
                 var basicAuth = Convert.ToBase64String(Encoding.ASCII.GetBytes("riot:" + authToken));
                 http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", basicAuth);
+
+                // The Riot Client chat service lives on its own port with its own token.
+                if (riotToken.Length > 0 && clientRiotPort.Length > 0)
+                {
+                    var riotAuth = Convert.ToBase64String(Encoding.ASCII.GetBytes("riot:" + riotToken));
+                    riotHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", riotAuth);
+                    riotPort = clientRiotPort;
+                }
 
                 socket = new WebSocket("wss://127.0.0.1:" + clientPort + "/", "wamp");
                 socket.SetCredentials("riot", authToken, true);
                 socket.SslConfiguration.EnabledSslProtocols = SslProtocols.Tls12;
                 socket.SslConfiguration.ServerCertificateValidationCallback = (msg, cert, chain, errors) => true;
                 socket.OnClose += HandleDisconnect;
+                socket.OnMessage += HandleMessage;
                 socket.Connect();
+
+                // Subscribe to gameflow-phase events (WAMP opcode 5 = SUBSCRIBE).
+                socket.Send("[5,\"OnJsonApiEvent_lol-gameflow_v1_gameflow-phase\"]");
 
                 port = clientPort;
                 IsConnected = true;
@@ -79,11 +106,52 @@ namespace PoroTool
         private void HandleDisconnect(object sender, CloseEventArgs args)
         {
             port = null;
+            riotPort = null;
             socket = null;
             IsConnected = false;
             OnDisconnected?.Invoke();
 
             TryConnectOrRetry();
+        }
+
+        /// <summary>
+        /// Handles WAMP event frames. Events arrive as [8, "topic", {data,eventType,uri}].
+        /// </summary>
+        private void HandleMessage(object sender, MessageEventArgs args)
+        {
+            if (!args.IsText) return;
+
+            try
+            {
+                if (!(SimpleJson.DeserializeObject(args.Data) is JsonArray frame) || frame.Count < 3) return;
+                if (Convert.ToInt64(frame[0]) != 8) return;   // 8 = EVENT
+
+                string topic = frame[1] as string;
+                var payload = frame[2] as JsonObject;
+                if (payload == null) return;
+                payload.TryGetValue("data", out var data);
+
+                if (topic == "OnJsonApiEvent_lol-gameflow_v1_gameflow-phase")
+                    GameflowPhaseChanged?.Invoke(data as string);
+            }
+            catch
+            {
+                // A malformed frame must never take down the socket.
+            }
+        }
+
+        /// <summary>
+        /// GET against the Riot Client API (chat/region), or null on 404 / when
+        /// the Riot Client port was not found.
+        /// </summary>
+        public async Task<dynamic> GetRiotClient(string url)
+        {
+            if (!IsConnected || riotPort == null) return null;
+
+            var response = await riotHttp.GetAsync("https://127.0.0.1:" + riotPort + url);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+
+            return SimpleJson.DeserializeObject(await response.Content.ReadAsStringAsync());
         }
 
         /// <summary>

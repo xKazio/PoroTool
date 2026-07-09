@@ -46,6 +46,8 @@
             this.statusButton = new System.Windows.Forms.Button();
             this.purchaseDatesButton = new System.Windows.Forms.Button();
             this.customApiButton = new System.Windows.Forms.Button();
+            this.liveSectionLabel = new System.Windows.Forms.Label();
+            this.lobbyRevealButton = new System.Windows.Forms.Button();
             this.processSectionLabel = new System.Windows.Forms.Label();
             this.processOptions = new System.Windows.Forms.FlowLayoutPanel();
             this.processButton = new System.Windows.Forms.Button();
@@ -93,6 +95,8 @@
             this.sidebarLayout.Controls.Add(this.statusButton);
             this.sidebarLayout.Controls.Add(this.purchaseDatesButton);
             this.sidebarLayout.Controls.Add(this.customApiButton);
+            this.sidebarLayout.Controls.Add(this.liveSectionLabel);
+            this.sidebarLayout.Controls.Add(this.lobbyRevealButton);
             this.sidebarLayout.Controls.Add(this.processSectionLabel);
             this.sidebarLayout.Controls.Add(this.processOptions);
             this.sidebarLayout.Controls.Add(this.processButton);
@@ -235,6 +239,22 @@
             this.customApiButton.Text = "API console";
             this.customApiButton.Click += new System.EventHandler(this.customApiButton_Click);
             //
+            // liveSectionLabel
+            //
+            this.liveSectionLabel.AutoSize = true;
+            this.liveSectionLabel.Margin = new System.Windows.Forms.Padding(2, 16, 0, 4);
+            this.liveSectionLabel.Name = "liveSectionLabel";
+            this.liveSectionLabel.Text = "LIVE";
+            //
+            // lobbyRevealButton
+            //
+            this.lobbyRevealButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.lobbyRevealButton.Name = "lobbyRevealButton";
+            this.lobbyRevealButton.Size = new System.Drawing.Size(196, 30);
+            this.lobbyRevealButton.TabIndex = 19;
+            this.lobbyRevealButton.Text = "Lobby reveal + auto accept";
+            this.lobbyRevealButton.Click += new System.EventHandler(this.lobbyRevealButton_Click);
+            //
             // processSectionLabel
             //
             this.processSectionLabel.AutoSize = true;
@@ -362,13 +382,14 @@
             //
             // MainForm
             //
-            this.ClientSize = new System.Drawing.Size(900, 800);
+            this.ClientSize = new System.Drawing.Size(900, 930);
             this.Controls.Add(this.outputPanel);
             this.Controls.Add(this.featurePanel);
             this.Controls.Add(this.sidebar);
             this.Controls.Add(this.statusStrip);
-            this.MinimumSize = new System.Drawing.Size(760, 620);
+            this.MinimumSize = new System.Drawing.Size(760, 720);
             this.Name = "MainForm";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Poro Tool";
             this.Load += new System.EventHandler(this.MainForm_Load);
             this.sidebar.ResumeLayout(false);
@@ -398,6 +419,8 @@
         private System.Windows.Forms.Button statusButton;
         private System.Windows.Forms.Button purchaseDatesButton;
         private System.Windows.Forms.Button customApiButton;
+        private System.Windows.Forms.Label liveSectionLabel;
+        private System.Windows.Forms.Button lobbyRevealButton;
         private System.Windows.Forms.Label processSectionLabel;
         private System.Windows.Forms.FlowLayoutPanel processOptions;
         private System.Windows.Forms.Button processButton;

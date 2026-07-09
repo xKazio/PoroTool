@@ -137,6 +137,17 @@ namespace PoroTool
             textBox.BorderStyle = BorderStyle.FixedSingle;
         }
 
+        public static void StyleCheckBox(CheckBox checkBox)
+        {
+            checkBox.Font = RowFont;
+            checkBox.ForeColor = TextPrimary;
+            checkBox.BackColor = Canvas;
+            checkBox.FlatStyle = FlatStyle.Flat;
+            checkBox.FlatAppearance.BorderColor = Hairline;
+            checkBox.AutoSize = true;
+            checkBox.Cursor = Cursors.Hand;
+        }
+
         public static void StyleListView(ListView listView)
         {
             listView.Font = RowFont;
