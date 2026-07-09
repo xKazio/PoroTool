@@ -29,6 +29,7 @@ namespace PoroTool
         public static readonly Font StatusFont = new Font("Segoe UI", 9f);
         public static readonly Font RowFont = new Font("Segoe UI", 9.75f);
         public static readonly Font RowHeaderFont = new Font("Segoe UI Semibold", 9.75f);
+        public static readonly Font MonoFont = new Font("Consolas", 9.75f);
 
         public static void StyleButton(Button button)
         {
@@ -102,6 +103,22 @@ namespace PoroTool
             numeric.BackColor = Surface;
             numeric.ForeColor = TextPrimary;
             numeric.BorderStyle = BorderStyle.FixedSingle;
+        }
+
+        public static void StyleTextBox(TextBox textBox)
+        {
+            textBox.Font = RowFont;
+            textBox.BackColor = Surface;
+            textBox.ForeColor = TextPrimary;
+            textBox.BorderStyle = BorderStyle.FixedSingle;
+        }
+
+        public static void StyleListView(ListView listView)
+        {
+            listView.Font = RowFont;
+            listView.BackColor = Surface;
+            listView.ForeColor = TextPrimary;
+            listView.BorderStyle = BorderStyle.FixedSingle;
         }
     }
 }

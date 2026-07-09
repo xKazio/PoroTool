@@ -50,6 +50,7 @@ namespace PoroTool
             BackColor = Theme.Canvas;
             sidebar.BackColor = Theme.Sidebar;
             outputPanel.BackColor = Theme.Canvas;
+            featurePanel.BackColor = Theme.Canvas;
             statusStrip.BackColor = Theme.Sidebar;
             statusDivider.BackColor = Theme.Hairline;
 
@@ -58,12 +59,15 @@ namespace PoroTool
 
             lootSectionLabel.Font = Theme.SectionFont;
             lootSectionLabel.ForeColor = Theme.TextMuted;
+            profileSectionLabel.Font = Theme.SectionFont;
+            profileSectionLabel.ForeColor = Theme.TextMuted;
             processSectionLabel.Font = Theme.SectionFont;
             processSectionLabel.ForeColor = Theme.TextMuted;
 
             foreach (var button in new[] { loadChampionsButton, loadSkinsButton, loadEmotesButton, loadWardsButton,
                                            loadIconsButton, loadCompanionsButton, loadEternalsButton, loadChestsButton,
-                                           removeTokensButton })
+                                           chatRankButton, backgroundButton, statusButton, purchaseDatesButton,
+                                           customApiButton, removeTokensButton })
             {
                 Theme.StyleButton(button);
             }
@@ -159,6 +163,7 @@ namespace PoroTool
         {
             if (!EnsureConnected()) return;
 
+            ShowLootView();
             await RefreshLoot();
             outputPanel.Controls.Clear();
 

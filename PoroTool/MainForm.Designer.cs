@@ -40,9 +40,16 @@
             this.loadCompanionsButton = new System.Windows.Forms.Button();
             this.loadEternalsButton = new System.Windows.Forms.Button();
             this.loadChestsButton = new System.Windows.Forms.Button();
+            this.profileSectionLabel = new System.Windows.Forms.Label();
+            this.chatRankButton = new System.Windows.Forms.Button();
+            this.backgroundButton = new System.Windows.Forms.Button();
+            this.statusButton = new System.Windows.Forms.Button();
+            this.purchaseDatesButton = new System.Windows.Forms.Button();
+            this.customApiButton = new System.Windows.Forms.Button();
             this.processSectionLabel = new System.Windows.Forms.Label();
             this.processOptions = new System.Windows.Forms.FlowLayoutPanel();
             this.processButton = new System.Windows.Forms.Button();
+            this.featurePanel = new System.Windows.Forms.Panel();
             this.sidebarBottom = new System.Windows.Forms.FlowLayoutPanel();
             this.removeTokensButton = new System.Windows.Forms.Button();
             this.legalNoteButton = new System.Windows.Forms.Button();
@@ -77,9 +84,16 @@
             this.sidebarLayout.Controls.Add(this.loadCompanionsButton);
             this.sidebarLayout.Controls.Add(this.loadEternalsButton);
             this.sidebarLayout.Controls.Add(this.loadChestsButton);
+            this.sidebarLayout.Controls.Add(this.profileSectionLabel);
+            this.sidebarLayout.Controls.Add(this.chatRankButton);
+            this.sidebarLayout.Controls.Add(this.backgroundButton);
+            this.sidebarLayout.Controls.Add(this.statusButton);
+            this.sidebarLayout.Controls.Add(this.purchaseDatesButton);
+            this.sidebarLayout.Controls.Add(this.customApiButton);
             this.sidebarLayout.Controls.Add(this.processSectionLabel);
             this.sidebarLayout.Controls.Add(this.processOptions);
             this.sidebarLayout.Controls.Add(this.processButton);
+            this.sidebarLayout.AutoScroll = true;
             this.sidebarLayout.Dock = System.Windows.Forms.DockStyle.Fill;
             this.sidebarLayout.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.sidebarLayout.Margin = new System.Windows.Forms.Padding(0);
@@ -96,75 +110,127 @@
             //
             // loadChampionsButton
             //
-            this.loadChampionsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.loadChampionsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.loadChampionsButton.Name = "loadChampionsButton";
-            this.loadChampionsButton.Size = new System.Drawing.Size(196, 34);
+            this.loadChampionsButton.Size = new System.Drawing.Size(196, 30);
             this.loadChampionsButton.TabIndex = 0;
             this.loadChampionsButton.Text = "Champions";
             this.loadChampionsButton.Click += new System.EventHandler(this.loadChampionsButton_Click);
             //
             // loadSkinsButton
             //
-            this.loadSkinsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.loadSkinsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.loadSkinsButton.Name = "loadSkinsButton";
-            this.loadSkinsButton.Size = new System.Drawing.Size(196, 34);
+            this.loadSkinsButton.Size = new System.Drawing.Size(196, 30);
             this.loadSkinsButton.TabIndex = 1;
             this.loadSkinsButton.Text = "Skins";
             this.loadSkinsButton.Click += new System.EventHandler(this.loadSkinsButton_Click);
             //
             // loadEmotesButton
             //
-            this.loadEmotesButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.loadEmotesButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.loadEmotesButton.Name = "loadEmotesButton";
-            this.loadEmotesButton.Size = new System.Drawing.Size(196, 34);
+            this.loadEmotesButton.Size = new System.Drawing.Size(196, 30);
             this.loadEmotesButton.TabIndex = 2;
             this.loadEmotesButton.Text = "Emotes";
             this.loadEmotesButton.Click += new System.EventHandler(this.loadEmotesButton_Click);
             //
             // loadWardsButton
             //
-            this.loadWardsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.loadWardsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.loadWardsButton.Name = "loadWardsButton";
-            this.loadWardsButton.Size = new System.Drawing.Size(196, 34);
+            this.loadWardsButton.Size = new System.Drawing.Size(196, 30);
             this.loadWardsButton.TabIndex = 3;
             this.loadWardsButton.Text = "Wards";
             this.loadWardsButton.Click += new System.EventHandler(this.loadWardsButton_Click);
             //
             // loadIconsButton
             //
-            this.loadIconsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.loadIconsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.loadIconsButton.Name = "loadIconsButton";
-            this.loadIconsButton.Size = new System.Drawing.Size(196, 34);
+            this.loadIconsButton.Size = new System.Drawing.Size(196, 30);
             this.loadIconsButton.TabIndex = 4;
             this.loadIconsButton.Text = "Icons";
             this.loadIconsButton.Click += new System.EventHandler(this.loadIconsButton_Click);
             //
             // loadCompanionsButton
             //
-            this.loadCompanionsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.loadCompanionsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.loadCompanionsButton.Name = "loadCompanionsButton";
-            this.loadCompanionsButton.Size = new System.Drawing.Size(196, 34);
+            this.loadCompanionsButton.Size = new System.Drawing.Size(196, 30);
             this.loadCompanionsButton.TabIndex = 5;
             this.loadCompanionsButton.Text = "Companions";
             this.loadCompanionsButton.Click += new System.EventHandler(this.loadCompanionsButton_Click);
             //
             // loadEternalsButton
             //
-            this.loadEternalsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.loadEternalsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.loadEternalsButton.Name = "loadEternalsButton";
-            this.loadEternalsButton.Size = new System.Drawing.Size(196, 34);
+            this.loadEternalsButton.Size = new System.Drawing.Size(196, 30);
             this.loadEternalsButton.TabIndex = 6;
             this.loadEternalsButton.Text = "Eternals";
             this.loadEternalsButton.Click += new System.EventHandler(this.loadEternalsButton_Click);
             //
             // loadChestsButton
             //
-            this.loadChestsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.loadChestsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.loadChestsButton.Name = "loadChestsButton";
-            this.loadChestsButton.Size = new System.Drawing.Size(196, 34);
+            this.loadChestsButton.Size = new System.Drawing.Size(196, 30);
             this.loadChestsButton.TabIndex = 7;
             this.loadChestsButton.Text = "Chests";
             this.loadChestsButton.Click += new System.EventHandler(this.loadChestsButton_Click);
+            //
+            // profileSectionLabel
+            //
+            this.profileSectionLabel.AutoSize = true;
+            this.profileSectionLabel.Margin = new System.Windows.Forms.Padding(2, 16, 0, 4);
+            this.profileSectionLabel.Name = "profileSectionLabel";
+            this.profileSectionLabel.Text = "PROFILE";
+            //
+            // chatRankButton
+            //
+            this.chatRankButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.chatRankButton.Name = "chatRankButton";
+            this.chatRankButton.Size = new System.Drawing.Size(196, 30);
+            this.chatRankButton.TabIndex = 12;
+            this.chatRankButton.Text = "Chat rank";
+            this.chatRankButton.Click += new System.EventHandler(this.chatRankButton_Click);
+            //
+            // backgroundButton
+            //
+            this.backgroundButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.backgroundButton.Name = "backgroundButton";
+            this.backgroundButton.Size = new System.Drawing.Size(196, 30);
+            this.backgroundButton.TabIndex = 13;
+            this.backgroundButton.Text = "Profile background";
+            this.backgroundButton.Click += new System.EventHandler(this.backgroundButton_Click);
+            //
+            // statusButton
+            //
+            this.statusButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.statusButton.Name = "statusButton";
+            this.statusButton.Size = new System.Drawing.Size(196, 30);
+            this.statusButton.TabIndex = 14;
+            this.statusButton.Text = "Chat status";
+            this.statusButton.Click += new System.EventHandler(this.statusButton_Click);
+            //
+            // purchaseDatesButton
+            //
+            this.purchaseDatesButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.purchaseDatesButton.Name = "purchaseDatesButton";
+            this.purchaseDatesButton.Size = new System.Drawing.Size(196, 30);
+            this.purchaseDatesButton.TabIndex = 15;
+            this.purchaseDatesButton.Text = "Purchase dates";
+            this.purchaseDatesButton.Click += new System.EventHandler(this.purchaseDatesButton_Click);
+            //
+            // customApiButton
+            //
+            this.customApiButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.customApiButton.Name = "customApiButton";
+            this.customApiButton.Size = new System.Drawing.Size(196, 30);
+            this.customApiButton.TabIndex = 16;
+            this.customApiButton.Text = "API console";
+            this.customApiButton.Click += new System.EventHandler(this.customApiButton_Click);
             //
             // processSectionLabel
             //
@@ -231,6 +297,14 @@
             this.outputPanel.Padding = new System.Windows.Forms.Padding(16);
             this.outputPanel.TabIndex = 1;
             //
+            // featurePanel
+            //
+            this.featurePanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.featurePanel.Name = "featurePanel";
+            this.featurePanel.Padding = new System.Windows.Forms.Padding(16);
+            this.featurePanel.TabIndex = 3;
+            this.featurePanel.Visible = false;
+            //
             // statusStrip
             //
             this.statusStrip.Controls.Add(this.messageLabel);
@@ -257,11 +331,12 @@
             //
             // MainForm
             //
-            this.ClientSize = new System.Drawing.Size(900, 640);
+            this.ClientSize = new System.Drawing.Size(900, 800);
             this.Controls.Add(this.outputPanel);
+            this.Controls.Add(this.featurePanel);
             this.Controls.Add(this.sidebar);
             this.Controls.Add(this.statusStrip);
-            this.MinimumSize = new System.Drawing.Size(760, 560);
+            this.MinimumSize = new System.Drawing.Size(760, 620);
             this.Name = "MainForm";
             this.Text = "Poro Tool";
             this.Load += new System.EventHandler(this.MainForm_Load);
@@ -286,6 +361,12 @@
         private System.Windows.Forms.Button loadCompanionsButton;
         private System.Windows.Forms.Button loadEternalsButton;
         private System.Windows.Forms.Button loadChestsButton;
+        private System.Windows.Forms.Label profileSectionLabel;
+        private System.Windows.Forms.Button chatRankButton;
+        private System.Windows.Forms.Button backgroundButton;
+        private System.Windows.Forms.Button statusButton;
+        private System.Windows.Forms.Button purchaseDatesButton;
+        private System.Windows.Forms.Button customApiButton;
         private System.Windows.Forms.Label processSectionLabel;
         private System.Windows.Forms.FlowLayoutPanel processOptions;
         private System.Windows.Forms.Button processButton;
@@ -293,6 +374,7 @@
         private System.Windows.Forms.Button removeTokensButton;
         private System.Windows.Forms.Button legalNoteButton;
         private System.Windows.Forms.FlowLayoutPanel outputPanel;
+        private System.Windows.Forms.Panel featurePanel;
         private System.Windows.Forms.Panel statusStrip;
         private System.Windows.Forms.Label messageLabel;
         private System.Windows.Forms.Panel statusDivider;

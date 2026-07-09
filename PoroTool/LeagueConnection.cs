@@ -105,9 +105,32 @@ namespace PoroTool
         /// </summary>
         public async Task Post(string url, string body)
         {
+            await Request("POST", url, body);
+        }
+
+        /// <summary>
+        /// PUT request against the LCU with a JSON body.
+        /// </summary>
+        public Task<(int Status, string Content)> Put(string url, string body)
+        {
+            return Request("PUT", url, body);
+        }
+
+        /// <summary>
+        /// Request against the LCU with any HTTP method and an optional JSON
+        /// body. Returns the status code and the raw response content.
+        /// </summary>
+        public async Task<(int Status, string Content)> Request(string method, string url, string body)
+        {
             if (!IsConnected) throw new InvalidOperationException("Not connected to the League client.");
 
-            await http.PostAsync("https://127.0.0.1:" + port + url, new StringContent(body, Encoding.UTF8, "application/json"));
+            // net48 has no HttpMethod.Patch, so methods are built from strings.
+            var request = new HttpRequestMessage(new HttpMethod(method), "https://127.0.0.1:" + port + url);
+            if (!string.IsNullOrWhiteSpace(body))
+                request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+            var response = await http.SendAsync(request);
+            return ((int)response.StatusCode, await response.Content.ReadAsStringAsync());
         }
     }
 }
