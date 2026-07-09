@@ -30,6 +30,10 @@ namespace PoroTool
         /// (e.g. "ReadyCheck", "ChampSelect", "InProgress").</summary>
         public event Action<string> GameflowPhaseChanged;
 
+        /// <summary>Raised on the websocket thread with the champ-select session
+        /// each time it updates (used to time the last-second dodge).</summary>
+        public event Action<JsonObject> ChampSelectSessionChanged;
+
         public bool IsConnected { get; private set; }
 
         /// <summary>True once the Riot Client chat port was found (needed for the reveal).</summary>
@@ -89,8 +93,9 @@ namespace PoroTool
                 socket.OnMessage += HandleMessage;
                 socket.Connect();
 
-                // Subscribe to gameflow-phase events (WAMP opcode 5 = SUBSCRIBE).
+                // Subscribe to the events we need (WAMP opcode 5 = SUBSCRIBE).
                 socket.Send("[5,\"OnJsonApiEvent_lol-gameflow_v1_gameflow-phase\"]");
+                socket.Send("[5,\"OnJsonApiEvent_lol-champ-select_v1_session\"]");
 
                 port = clientPort;
                 IsConnected = true;
@@ -133,6 +138,8 @@ namespace PoroTool
 
                 if (topic == "OnJsonApiEvent_lol-gameflow_v1_gameflow-phase")
                     GameflowPhaseChanged?.Invoke(data as string);
+                else if (topic == "OnJsonApiEvent_lol-champ-select_v1_session")
+                    ChampSelectSessionChanged?.Invoke(data as JsonObject);
             }
             catch
             {

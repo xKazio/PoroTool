@@ -20,6 +20,7 @@ namespace PoroTool
             viewCts?.Cancel();
             revealListPanel = null;
             revealPhaseLabel = null;
+            dodgeArmCheckBox = null;
             featurePanel.Visible = false;
             DisposeFeatureControls();
             ImageCache.ClearSplashCache();
@@ -32,6 +33,7 @@ namespace PoroTool
 
             revealListPanel = null;
             revealPhaseLabel = null;
+            dodgeArmCheckBox = null;
 
             viewCts?.Cancel();
             viewCts = new CancellationTokenSource();
