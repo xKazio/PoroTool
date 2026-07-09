@@ -11,7 +11,7 @@ namespace PoroTool
         {
             // net48 allows only 2 concurrent connections per host by default,
             // which would serialize the CDN thumbnail downloads.
-            ServicePointManager.DefaultConnectionLimit = 20;
+            ServicePointManager.DefaultConnectionLimit = 64;
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
