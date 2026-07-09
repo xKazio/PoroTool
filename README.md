@@ -6,10 +6,21 @@ A small desktop utility for League of Legends that does the boring loot work for
 - **Forge companions and emotes** in batches.
 - **Open chests and capsules** with a chosen recipe, repeated as many times as you want.
 - **Remove challenge tokens** from your profile banner (the client no longer lets you clear them).
+- **Chat rank** — set the rank friends see when hovering your icon in chat (Solo/Duo or TFT).
+- **Profile background** — browse every champion's skin splashes and set any of them as your profile background.
+- **Chat status** — set a custom status message.
+- **Purchase dates** — a sortable list of your champions with the date you bought them.
+- **API console** — send raw requests to the LCU and inspect the responses.
 
 Poro Tool talks to the official local League Client API (LCU) — the same one the client itself uses. It doesn't touch the game, doesn't read memory and doesn't automate gameplay.
 
 ![Poro Tool](docs/screenshot.png)
+
+## Download
+
+Grab `PoroTool.exe` from the [latest release](https://github.com/xKazio/PoroTool/releases/latest) — it's a single portable file, no installer and nothing else to download.
+
+**Requirements:** Windows with .NET Framework 4.8, which is preinstalled on Windows 10 (version 1903 and newer) and Windows 11. On older Windows install [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48) first.
 
 ## Usage
 
