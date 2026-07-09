@@ -52,6 +52,9 @@
             this.featurePanel = new System.Windows.Forms.Panel();
             this.sidebarBottom = new System.Windows.Forms.FlowLayoutPanel();
             this.removeTokensButton = new System.Windows.Forms.Button();
+            this.socialsPanel = new System.Windows.Forms.FlowLayoutPanel();
+            this.discordButton = new System.Windows.Forms.Button();
+            this.githubButton = new System.Windows.Forms.Button();
             this.legalNoteButton = new System.Windows.Forms.Button();
             this.outputPanel = new System.Windows.Forms.FlowLayoutPanel();
             this.statusStrip = new System.Windows.Forms.Panel();
@@ -262,12 +265,13 @@
             // sidebarBottom
             //
             this.sidebarBottom.Controls.Add(this.removeTokensButton);
+            this.sidebarBottom.Controls.Add(this.socialsPanel);
             this.sidebarBottom.Controls.Add(this.legalNoteButton);
             this.sidebarBottom.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.sidebarBottom.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.sidebarBottom.Margin = new System.Windows.Forms.Padding(0);
             this.sidebarBottom.Name = "sidebarBottom";
-            this.sidebarBottom.Size = new System.Drawing.Size(196, 66);
+            this.sidebarBottom.Size = new System.Drawing.Size(196, 102);
             this.sidebarBottom.WrapContents = false;
             this.sidebarBottom.TabIndex = 1;
             //
@@ -279,6 +283,33 @@
             this.removeTokensButton.TabIndex = 10;
             this.removeTokensButton.Text = "Remove challenge tokens";
             this.removeTokensButton.Click += new System.EventHandler(this.removeTokensButton_Click);
+            //
+            // socialsPanel
+            //
+            this.socialsPanel.Controls.Add(this.discordButton);
+            this.socialsPanel.Controls.Add(this.githubButton);
+            this.socialsPanel.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.socialsPanel.Name = "socialsPanel";
+            this.socialsPanel.Size = new System.Drawing.Size(196, 30);
+            this.socialsPanel.WrapContents = false;
+            //
+            // discordButton
+            //
+            this.discordButton.Margin = new System.Windows.Forms.Padding(0, 0, 6, 0);
+            this.discordButton.Name = "discordButton";
+            this.discordButton.Size = new System.Drawing.Size(95, 30);
+            this.discordButton.TabIndex = 17;
+            this.discordButton.Text = "Discord";
+            this.discordButton.Click += new System.EventHandler(this.discordButton_Click);
+            //
+            // githubButton
+            //
+            this.githubButton.Margin = new System.Windows.Forms.Padding(0);
+            this.githubButton.Name = "githubButton";
+            this.githubButton.Size = new System.Drawing.Size(95, 30);
+            this.githubButton.TabIndex = 18;
+            this.githubButton.Text = "GitHub";
+            this.githubButton.Click += new System.EventHandler(this.githubButton_Click);
             //
             // legalNoteButton
             //
@@ -372,6 +403,9 @@
         private System.Windows.Forms.Button processButton;
         private System.Windows.Forms.FlowLayoutPanel sidebarBottom;
         private System.Windows.Forms.Button removeTokensButton;
+        private System.Windows.Forms.FlowLayoutPanel socialsPanel;
+        private System.Windows.Forms.Button discordButton;
+        private System.Windows.Forms.Button githubButton;
         private System.Windows.Forms.Button legalNoteButton;
         private System.Windows.Forms.FlowLayoutPanel outputPanel;
         private System.Windows.Forms.Panel featurePanel;

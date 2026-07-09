@@ -37,6 +37,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="logo.ico" />
+    <EmbeddedResource Include="discord.png" />
+    <EmbeddedResource Include="github.png" />
   </ItemGroup>
 
 </Project>

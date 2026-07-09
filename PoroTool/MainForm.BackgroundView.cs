@@ -199,7 +199,7 @@ namespace PoroTool
             List<DataDragon.SkinEntry> skins;
             try
             {
-                skins = await DataDragon.GetSkinsAsync(champion.Alias, champion.Name);
+                skins = await DataDragon.GetSkinsAsync(champion);
             }
             catch (Exception ex)
             {

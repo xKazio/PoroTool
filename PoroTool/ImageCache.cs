@@ -18,7 +18,7 @@ namespace PoroTool
     static class ImageCache
     {
         private static readonly HttpClient http = new HttpClient();
-        private static readonly SemaphoreSlim gate = new SemaphoreSlim(4);
+        private static readonly SemaphoreSlim gate = new SemaphoreSlim(8);
         private static readonly object sync = new object();
 
         private static readonly Dictionary<string, Image> icons = new Dictionary<string, Image>();

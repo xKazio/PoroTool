@@ -23,6 +23,12 @@ namespace PoroTool
         public static readonly Color Success = ColorTranslator.FromHtml("#3E8E58");
         public static readonly Color Error = ColorTranslator.FromHtml("#C44F3F");
 
+        // Official brand colors for the social link buttons.
+        public static readonly Color DiscordBrand = ColorTranslator.FromHtml("#5865F2");
+        public static readonly Color DiscordBrandHover = ColorTranslator.FromHtml("#6D78F4");
+        public static readonly Color GitHubBrand = ColorTranslator.FromHtml("#24292E");
+        public static readonly Color GitHubBrandHover = ColorTranslator.FromHtml("#3A4046");
+
         public static readonly Font ButtonFont = new Font("Segoe UI", 9.75f);
         public static readonly Font PrimaryButtonFont = new Font("Segoe UI Semibold", 10f);
         public static readonly Font SectionFont = new Font("Segoe UI Semibold", 8.25f);
@@ -103,6 +109,24 @@ namespace PoroTool
             numeric.BackColor = Surface;
             numeric.ForeColor = TextPrimary;
             numeric.BorderStyle = BorderStyle.FixedSingle;
+        }
+
+        public static void StyleSocialButton(Button button, Color brand, Color brandHover, Image icon)
+        {
+            button.FlatStyle = FlatStyle.Flat;
+            button.BackColor = brand;
+            button.ForeColor = Color.White;
+            button.Font = ButtonFont;
+            button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = brandHover;
+            button.FlatAppearance.MouseDownBackColor = brand;
+            button.Image = icon;
+            button.TextImageRelation = TextImageRelation.ImageBeforeText;
+            button.ImageAlign = ContentAlignment.MiddleLeft;
+            button.TextAlign = ContentAlignment.MiddleRight;
+            button.Padding = new Padding(8, 0, 8, 0);
+            button.Cursor = Cursors.Hand;
+            button.UseVisualStyleBackColor = false;
         }
 
         public static void StyleTextBox(TextBox textBox)

@@ -74,6 +74,16 @@ namespace PoroTool
             Theme.StylePrimaryButton(processButton);
             Theme.StyleTextButton(legalNoteButton);
             processOptions.BackColor = Theme.Sidebar;
+
+            socialsPanel.BackColor = Theme.Sidebar;
+            Theme.StyleSocialButton(discordButton, Theme.DiscordBrand, Theme.DiscordBrandHover, LoadEmbeddedIcon("discord.png"));
+            Theme.StyleSocialButton(githubButton, Theme.GitHubBrand, Theme.GitHubBrandHover, LoadEmbeddedIcon("github.png"));
+        }
+
+        private static Image LoadEmbeddedIcon(string name)
+        {
+            using (var full = new Bitmap(typeof(MainForm), name))
+                return new Bitmap(full, new Size(18, 18));
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -547,6 +557,16 @@ namespace PoroTool
                     await league.Post(craft.Key, body);
             }
             queuedCrafts.Clear();
+        }
+
+        private void discordButton_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://discord.com/users/599000053956476937");
+        }
+
+        private void githubButton_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://github.com/xKazio/PoroTool");
         }
 
         private void legalNoteButton_Click(object sender, EventArgs e)

@@ -23,6 +23,7 @@ namespace PoroTool
         {
             public string Alias;
             public string Name;
+            public long Key;
         }
 
         public sealed class SkinEntry
@@ -58,7 +59,8 @@ namespace PoroTool
                 list.Add(new ChampionEntry
                 {
                     Alias = (string)champion["id"],
-                    Name = (string)champion["name"]
+                    Name = (string)champion["name"],
+                    Key = Convert.ToInt64(champion["key"])
                 });
             }
             list.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
@@ -67,29 +69,32 @@ namespace PoroTool
             return champions;
         }
 
-        public static async Task<List<SkinEntry>> GetSkinsAsync(string alias, string championName)
+        public static async Task<List<SkinEntry>> GetSkinsAsync(ChampionEntry champion)
         {
-            if (skinsByAlias.TryGetValue(alias, out var cached)) return cached;
+            if (skinsByAlias.TryGetValue(champion.Alias, out var cached)) return cached;
 
-            string v = await GetVersionAsync();
-            var json = await http.GetStringAsync("https://ddragon.leagueoflegends.com/cdn/" + v + "/data/en_US/champion/" + alias + ".json");
+            // Data Dragon lists every chroma as its own skin, but chromas have
+            // no splash art. CommunityDragon's top-level skin list contains
+            // only real skins, so it is used as the source instead.
+            var json = await http.GetStringAsync(
+                "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champions/" + champion.Key + ".json");
             var root = (JsonObject)SimpleJson.DeserializeObject(json);
-            var skins = (JsonArray)((JsonObject)((JsonObject)root["data"])[alias])["skins"];
+            var skins = (JsonArray)root["skins"];
 
             var list = new List<SkinEntry>();
             foreach (JsonObject skin in skins)
             {
-                string name = (string)skin["name"];
+                skin.TryGetValue("isBase", out var isBase);
+                long id = Convert.ToInt64(skin["id"]);
                 list.Add(new SkinEntry
                 {
-                    Id = Convert.ToInt64(skin["id"]),
-                    Num = Convert.ToInt32(skin["num"]),
-                    // The base skin is called "default" in Data Dragon.
-                    Name = name == "default" ? championName : name
+                    Id = id,
+                    Num = (int)(id - champion.Key * 1000),
+                    Name = true.Equals(isBase) ? champion.Name : (string)skin["name"]
                 });
             }
 
-            skinsByAlias[alias] = list;
+            skinsByAlias[champion.Alias] = list;
             return list;
         }
 

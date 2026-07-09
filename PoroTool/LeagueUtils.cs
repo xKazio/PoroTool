@@ -4,7 +4,7 @@ using System.Linq;
 using System.Management;
 using System.Text.RegularExpressions;
 
-namespace PoroTool
+namespace PoroTool  
 {
     /// <summary>
     /// Locates the running League client and extracts the credentials needed
