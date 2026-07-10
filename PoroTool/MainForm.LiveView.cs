@@ -239,21 +239,41 @@ namespace PoroTool
 
         // ---------- Dodge ----------
 
-        // LCDS proxy call that quits champ select. It leaves the lobby/queue
-        // (you take the normal dodge penalty) but keeps the client running.
-        private async Task DodgeQuit()
+        // LCDS proxy call that quits champ select. The args are sent raw (like
+        // the reveal tool) and the call is repeated until we actually leave
+        // champ select, because a single quitV2 is flaky and often needs a few
+        // tries before it registers. Keeps the client running.
+        private async Task DodgeReliably()
         {
-            string args = Uri.EscapeDataString("[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]");
-            await league.Post("/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=" + args, "{}");
+            for (int attempt = 0; attempt < 6; attempt++)
+            {
+                try
+                {
+                    await league.Request("POST",
+                        "/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]",
+                        "{}");
+                }
+                catch { }
+
+                await Task.Delay(250);
+
+                try
+                {
+                    if (!(await league.Get("/lol-gameflow/v1/gameflow-phase") is string phase) || phase != "ChampSelect")
+                        return;   // out of champ select - the dodge landed
+                }
+                catch { }
+            }
         }
 
         private async void DodgeNow()
         {
             if (!EnsureConnected()) return;
 
+            SetStatusSafe("Dodging champ select...", StatusKind.Info);
             try
             {
-                await DodgeQuit();
+                await DodgeReliably();
                 SetStatusSafe("Dodged champ select.", StatusKind.Success);
             }
             catch (Exception ex)
@@ -281,8 +301,8 @@ namespace PoroTool
             long left = leftValue == null ? 0 : Convert.ToInt64(leftValue);
 
             dodgeScheduled = true;
-            // Fire a touch before the phase ends so the quit registers in time.
-            int wait = (int)Math.Max(0, left - 800);
+            // Fire before the phase ends, leaving room for the retry loop to land.
+            int wait = (int)Math.Max(0, left - 1500);
             SetStatusSafe("Last-second dodge: quitting in ~" + Math.Round(wait / 1000.0) + "s.", StatusKind.Info);
 
             Task.Run(async () =>
@@ -291,7 +311,7 @@ namespace PoroTool
                 {
                     await Task.Delay(wait);
                     if (!dodgeArmed) return;   // disarmed while waiting
-                    await DodgeQuit();
+                    await DodgeReliably();
                     SetStatusSafe("Dodged at the last second.", StatusKind.Success);
                 }
                 catch (Exception ex)
@@ -309,21 +329,14 @@ namespace PoroTool
 
         private void UpdateDodgeUi()
         {
-            var cb = dodgeArmCheckBox;
-            if (cb == null || cb.IsDisposed) return;
-
-            try
+            if (InvokeRequired)
             {
-                if (cb.InvokeRequired)
-                {
-                    cb.BeginInvoke((Action)UpdateDodgeUi);
-                    return;
-                }
-            }
-            catch
-            {
+                try { BeginInvoke((Action)UpdateDodgeUi); } catch { }
                 return;
             }
+
+            var cb = dodgeArmCheckBox;
+            if (cb == null || cb.IsDisposed) return;
 
             // Reflect the armed state without re-triggering the user handler
             // (e.g. when the dodge fired or champ select ended).
@@ -432,21 +445,16 @@ namespace PoroTool
 
         private void UpdateLiveUi()
         {
+            // Marshal via the form: its handle always exists once shown, so this
+            // is reliable even before the reveal panel's own handle is created.
+            if (InvokeRequired)
+            {
+                try { BeginInvoke((Action)UpdateLiveUi); } catch { }
+                return;
+            }
+
             var panel = revealListPanel;
             if (panel == null || panel.IsDisposed) return;
-
-            try
-            {
-                if (panel.InvokeRequired)
-                {
-                    panel.BeginInvoke((Action)UpdateLiveUi);
-                    return;
-                }
-            }
-            catch
-            {
-                return;   // control went away between the check and the invoke
-            }
 
             if (revealPhaseLabel != null && !revealPhaseLabel.IsDisposed)
                 revealPhaseLabel.Text = "Status: " + FriendlyPhase(currentPhase);

@@ -11,6 +11,10 @@ A small desktop utility for League of Legends that does the boring loot work for
 - **Chat status** — set a custom status message.
 - **Purchase dates** — a sortable list of your champions with the date you bought them.
 - **API console** — send raw requests to the LCU and inspect the responses.
+- **Lobby reveal** — shows your champ-select teammates' Riot IDs (even while names are hidden), read from your local client.
+- **Auto-accept** the ready check.
+- **Multi-search** — open an OP.GG / DeepLoL / U.GG / Tracker.gg lookup for the revealed players.
+- **Dodge** — leave champ select instantly, or arm a last-second dodge that fires just before the game starts.
 
 Poro Tool talks to the official local League Client API (LCU) — the same one the client itself uses. It doesn't touch the game, doesn't read memory and doesn't automate gameplay.
 
