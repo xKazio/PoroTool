@@ -10,6 +10,7 @@ A small desktop utility for League of Legends that does the boring loot work for
 - **Profile background** — browse every champion's skin splashes and set any of them as your profile background.
 - **Chat status** — set a custom status message.
 - **Purchase dates** — a sortable list of your champions with the date you bought them.
+- **Friends cleanup** — search and tick friends on a checklist, then bulk unfriend or block them in one go.
 - **API console** — send raw requests to the LCU and inspect the responses.
 - **Lobby reveal** — shows your champ-select teammates' Riot IDs (even while names are hidden), read from your local client.
 - **Auto-accept** the ready check.

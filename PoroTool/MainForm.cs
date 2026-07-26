@@ -69,7 +69,7 @@ namespace PoroTool
             foreach (var button in new[] { loadChampionsButton, loadSkinsButton, loadEmotesButton, loadWardsButton,
                                            loadIconsButton, loadCompanionsButton, loadEternalsButton, loadChestsButton,
                                            chatRankButton, backgroundButton, statusButton, purchaseDatesButton,
-                                           customApiButton, lobbyRevealButton, removeTokensButton })
+                                           friendsCleanupButton, customApiButton, lobbyRevealButton, removeTokensButton })
             {
                 Theme.StyleButton(button);
             }

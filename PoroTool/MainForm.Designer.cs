@@ -45,6 +45,7 @@
             this.backgroundButton = new System.Windows.Forms.Button();
             this.statusButton = new System.Windows.Forms.Button();
             this.purchaseDatesButton = new System.Windows.Forms.Button();
+            this.friendsCleanupButton = new System.Windows.Forms.Button();
             this.customApiButton = new System.Windows.Forms.Button();
             this.liveSectionLabel = new System.Windows.Forms.Label();
             this.lobbyRevealButton = new System.Windows.Forms.Button();
@@ -94,6 +95,7 @@
             this.sidebarLayout.Controls.Add(this.backgroundButton);
             this.sidebarLayout.Controls.Add(this.statusButton);
             this.sidebarLayout.Controls.Add(this.purchaseDatesButton);
+            this.sidebarLayout.Controls.Add(this.friendsCleanupButton);
             this.sidebarLayout.Controls.Add(this.customApiButton);
             this.sidebarLayout.Controls.Add(this.liveSectionLabel);
             this.sidebarLayout.Controls.Add(this.lobbyRevealButton);
@@ -229,6 +231,15 @@
             this.purchaseDatesButton.TabIndex = 15;
             this.purchaseDatesButton.Text = "Purchase dates";
             this.purchaseDatesButton.Click += new System.EventHandler(this.purchaseDatesButton_Click);
+            //
+            // friendsCleanupButton
+            //
+            this.friendsCleanupButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.friendsCleanupButton.Name = "friendsCleanupButton";
+            this.friendsCleanupButton.Size = new System.Drawing.Size(196, 30);
+            this.friendsCleanupButton.TabIndex = 20;
+            this.friendsCleanupButton.Text = "Friends cleanup";
+            this.friendsCleanupButton.Click += new System.EventHandler(this.friendsCleanupButton_Click);
             //
             // customApiButton
             //
@@ -418,6 +429,7 @@
         private System.Windows.Forms.Button backgroundButton;
         private System.Windows.Forms.Button statusButton;
         private System.Windows.Forms.Button purchaseDatesButton;
+        private System.Windows.Forms.Button friendsCleanupButton;
         private System.Windows.Forms.Button customApiButton;
         private System.Windows.Forms.Label liveSectionLabel;
         private System.Windows.Forms.Button lobbyRevealButton;
