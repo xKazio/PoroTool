@@ -21,7 +21,10 @@ namespace PoroTool
 
         // Discord proxies plain https image urls, so the artwork comes straight
         // from Community Dragon instead of needing uploaded assets.
-        private const string EmblemUrl = "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-";
+        // These crests are square and tightly cropped (the crest fills 40-75% of
+        // the frame); the ranked-emblem art wastes 70-85% on transparent padding,
+        // which left the rank almost invisible in Discord's small icon.
+        private const string EmblemUrl = "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/";
         private const string ProfileIconUrl = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/";
 
         private DiscordRpc discord;
