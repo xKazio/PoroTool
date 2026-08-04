@@ -49,6 +49,8 @@
             this.customApiButton = new System.Windows.Forms.Button();
             this.liveSectionLabel = new System.Windows.Forms.Label();
             this.lobbyRevealButton = new System.Windows.Forms.Button();
+            this.ragequeueButton = new System.Windows.Forms.Button();
+            this.discordPresenceButton = new System.Windows.Forms.Button();
             this.processSectionLabel = new System.Windows.Forms.Label();
             this.processOptions = new System.Windows.Forms.FlowLayoutPanel();
             this.processButton = new System.Windows.Forms.Button();
@@ -99,6 +101,8 @@
             this.sidebarLayout.Controls.Add(this.customApiButton);
             this.sidebarLayout.Controls.Add(this.liveSectionLabel);
             this.sidebarLayout.Controls.Add(this.lobbyRevealButton);
+            this.sidebarLayout.Controls.Add(this.ragequeueButton);
+            this.sidebarLayout.Controls.Add(this.discordPresenceButton);
             this.sidebarLayout.Controls.Add(this.processSectionLabel);
             this.sidebarLayout.Controls.Add(this.processOptions);
             this.sidebarLayout.Controls.Add(this.processButton);
@@ -192,7 +196,7 @@
             // profileSectionLabel
             //
             this.profileSectionLabel.AutoSize = true;
-            this.profileSectionLabel.Margin = new System.Windows.Forms.Padding(2, 16, 0, 4);
+            this.profileSectionLabel.Margin = new System.Windows.Forms.Padding(2, 8, 0, 4);
             this.profileSectionLabel.Name = "profileSectionLabel";
             this.profileSectionLabel.Text = "PROFILE";
             //
@@ -253,7 +257,7 @@
             // liveSectionLabel
             //
             this.liveSectionLabel.AutoSize = true;
-            this.liveSectionLabel.Margin = new System.Windows.Forms.Padding(2, 16, 0, 4);
+            this.liveSectionLabel.Margin = new System.Windows.Forms.Padding(2, 8, 0, 4);
             this.liveSectionLabel.Name = "liveSectionLabel";
             this.liveSectionLabel.Text = "LIVE";
             //
@@ -266,10 +270,28 @@
             this.lobbyRevealButton.Text = "Lobby reveal + auto accept";
             this.lobbyRevealButton.Click += new System.EventHandler(this.lobbyRevealButton_Click);
             //
+            // ragequeueButton
+            //
+            this.ragequeueButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.ragequeueButton.Name = "ragequeueButton";
+            this.ragequeueButton.Size = new System.Drawing.Size(196, 30);
+            this.ragequeueButton.TabIndex = 21;
+            this.ragequeueButton.Text = "Ragequeue";
+            this.ragequeueButton.Click += new System.EventHandler(this.ragequeueButton_Click);
+            //
+            // discordPresenceButton
+            //
+            this.discordPresenceButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.discordPresenceButton.Name = "discordPresenceButton";
+            this.discordPresenceButton.Size = new System.Drawing.Size(196, 30);
+            this.discordPresenceButton.TabIndex = 22;
+            this.discordPresenceButton.Text = "Discord status";
+            this.discordPresenceButton.Click += new System.EventHandler(this.discordPresenceButton_Click);
+            //
             // processSectionLabel
             //
             this.processSectionLabel.AutoSize = true;
-            this.processSectionLabel.Margin = new System.Windows.Forms.Padding(2, 16, 0, 4);
+            this.processSectionLabel.Margin = new System.Windows.Forms.Padding(2, 8, 0, 4);
             this.processSectionLabel.Name = "processSectionLabel";
             this.processSectionLabel.Text = "PROCESS";
             //
@@ -393,7 +415,7 @@
             //
             // MainForm
             //
-            this.ClientSize = new System.Drawing.Size(900, 930);
+            this.ClientSize = new System.Drawing.Size(900, 964);
             this.Controls.Add(this.outputPanel);
             this.Controls.Add(this.featurePanel);
             this.Controls.Add(this.sidebar);
@@ -433,6 +455,8 @@
         private System.Windows.Forms.Button customApiButton;
         private System.Windows.Forms.Label liveSectionLabel;
         private System.Windows.Forms.Button lobbyRevealButton;
+        private System.Windows.Forms.Button ragequeueButton;
+        private System.Windows.Forms.Button discordPresenceButton;
         private System.Windows.Forms.Label processSectionLabel;
         private System.Windows.Forms.FlowLayoutPanel processOptions;
         private System.Windows.Forms.Button processButton;
@@ -449,3 +473,4 @@
         private System.Windows.Forms.Panel statusDivider;
     }
 }
+

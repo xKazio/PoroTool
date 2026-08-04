@@ -69,7 +69,8 @@ namespace PoroTool
             foreach (var button in new[] { loadChampionsButton, loadSkinsButton, loadEmotesButton, loadWardsButton,
                                            loadIconsButton, loadCompanionsButton, loadEternalsButton, loadChestsButton,
                                            chatRankButton, backgroundButton, statusButton, purchaseDatesButton,
-                                           friendsCleanupButton, customApiButton, lobbyRevealButton, removeTokensButton })
+                                           friendsCleanupButton, customApiButton, lobbyRevealButton, ragequeueButton,
+                                           discordPresenceButton, removeTokensButton })
             {
                 Theme.StyleButton(button);
             }
@@ -94,6 +95,7 @@ namespace PoroTool
             league.OnConnected += () => SetStatusSafe("Connected to the League client.", StatusKind.Success);
             league.OnDisconnected += () => SetStatusSafe("League client closed. Waiting for it to come back...", StatusKind.Error);
             InitLive();
+            InitDiscord();
             SetStatus("Waiting for the League client...");
             FillProcessOptions();
         }

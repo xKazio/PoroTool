@@ -16,6 +16,8 @@ A small desktop utility for League of Legends that does the boring loot work for
 - **Auto-accept** the ready check.
 - **Multi-search** — open an OP.GG / DeepLoL / U.GG / Tracker.gg lookup for the revealed players.
 - **Dodge** — leave champ select instantly, or arm a last-second dodge that fires just before the game starts.
+- **Ragequeue** — one click to start your usual queue, with optional auto pick, auto ban and auto dodge.
+- **Discord status** — shows League on your Discord profile with your summoner icon and rank. No setup: it connects on its own.
 
 Poro Tool talks to the official local League Client API (LCU) — the same one the client itself uses. It doesn't touch the game, doesn't read memory and doesn't automate gameplay.
 

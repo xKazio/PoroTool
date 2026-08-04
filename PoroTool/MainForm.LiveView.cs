@@ -44,6 +44,7 @@ namespace PoroTool
             league.OnConnected += OnLiveConnected;
             league.GameflowPhaseChanged += OnGameflowPhase;
             league.ChampSelectSessionChanged += OnChampSelectSession;
+            InitRagequeue();
         }
 
         private void OnLiveConnected()
