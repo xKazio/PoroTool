@@ -32,6 +32,8 @@ namespace PoroTool
         public bool DiscordEnabled { get; set; } = true;
         public bool DiscordShowRank { get; set; } = true;
         public string DiscordRankQueue { get; set; } = "RANKED_SOLO_5x5";
+        /// <summary>Big Discord image: "summoner" (profile icon), "champion" (champion icon) or "skin" (skin art).</summary>
+        public string DiscordImage { get; set; } = "summoner";
 
         private static string FilePath =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PoroTool", "live.json");
@@ -60,6 +62,7 @@ namespace PoroTool
                 if (json.TryGetValue("discordEnabled", out var de)) settings.DiscordEnabled = Convert.ToBoolean(de);
                 if (json.TryGetValue("discordShowRank", out var dr)) settings.DiscordShowRank = Convert.ToBoolean(dr);
                 if (json.TryGetValue("discordRankQueue", out var dq) && dq is string dqs && dqs.Length > 0) settings.DiscordRankQueue = dqs;
+                if (json.TryGetValue("discordImage", out var di) && di is string dis && dis.Length > 0) settings.DiscordImage = dis;
                 return settings;
             }
             catch
@@ -94,6 +97,7 @@ namespace PoroTool
                     ["discordEnabled"] = DiscordEnabled,
                     ["discordShowRank"] = DiscordShowRank,
                     ["discordRankQueue"] = DiscordRankQueue,
+                    ["discordImage"] = DiscordImage,
                 };
                 var path = FilePath;
                 Directory.CreateDirectory(Path.GetDirectoryName(path));

@@ -8,7 +8,8 @@ namespace PoroTool
 {
     /// <summary>
     /// Discord Rich Presence: puts what you're doing in League on your own
-    /// Discord profile - queue, lobby state, your summoner icon and your rank.
+    /// Discord profile - queue, lobby state, your summoner icon (or the
+    /// champion / skin you're playing) and your rank.
     /// It connects to the Discord desktop app by itself and uses Riot's own
     /// "League of Legends" application id, so there is nothing to set up and
     /// the status looks exactly like the official one.
@@ -27,7 +28,16 @@ namespace PoroTool
         private const string EmblemUrl = "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-shared-components/global/default/";
         private const string ProfileIconUrl = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/";
 
+        // Hovering the big image shows this; clicking it opens the repo.
+        private const string ProjectUrl = "https://github.com/xKazio/PoroTool";
+        private const string ProjectHoverText = "github.com/xKazio/PoroTool";
+
         private DiscordRpc discord;
+
+        // The champion and skin picked in the last champ select, so the image
+        // still knows them once the game is running.
+        private long discordChampionId;
+        private long discordSkinId;
         private System.Windows.Forms.Timer discordTimer;
         private long? discordStartedAt;
         private string discordLastKey = "";
@@ -109,15 +119,15 @@ namespace PoroTool
                     state = await DiscordStateFor(phase);
 
                     var me = await league.Get("/lol-summoner/v1/current-summoner") as JsonObject;
-                    if (me != null)
-                    {
-                        string name = StringOf(me, "gameName");
-                        string tag = StringOf(me, "tagLine");
-                        largeText = string.IsNullOrEmpty(tag) ? name : name + "#" + tag;
 
-                        long iconId = LongOf(me, "profileIconId");
-                        if (iconId > 0) largeImage = ProfileIconUrl + iconId + ".jpg";
-                    }
+                    // Champion or skin art while a champion is known (champ
+                    // select and in game); the summoner icon otherwise.
+                    if (liveSettings.DiscordImage == "champion" || liveSettings.DiscordImage == "skin")
+                        largeImage = await DiscordChampionImageAsync(phase, StringOf(me, "puuid"), liveSettings.DiscordImage == "skin");
+
+                    long iconId = LongOf(me, "profileIconId");
+                    if (string.IsNullOrEmpty(largeImage) && iconId > 0) largeImage = ProfileIconUrl + iconId + ".jpg";
+                    largeText = ProjectHoverText;
 
                     if (liveSettings.DiscordShowRank)
                     {
@@ -136,7 +146,7 @@ namespace PoroTool
                 }
 
                 discord.SetActivity(details, state, discordStartedAt,
-                                    largeImage, largeText, smallImage, smallText);
+                                    largeImage, largeText, smallImage, smallText, ProjectUrl);
 
                 UpdateDiscordUi(details + " - " + state);
             }
@@ -144,6 +154,98 @@ namespace PoroTool
             {
                 // Client or Discord went away mid-update; the next tick retries.
             }
+        }
+
+        /// <summary>
+        /// Image url of the champion (or its skin) the player has in champ
+        /// select or in game, or null when there is none yet.
+        /// </summary>
+        private async Task<string> DiscordChampionImageAsync(string phase, string puuid, bool skin)
+        {
+            long championId = 0, skinId = 0;
+            try
+            {
+                switch (phase)
+                {
+                    case "ChampSelect":
+                        if (await league.Get("/lol-champ-select/v1/session") is JsonObject session)
+                        {
+                            long cell = LongOf(session, "localPlayerCellId");
+                            if (session.TryGetValue("myTeam", out var tv) && tv is JsonArray team)
+                            {
+                                foreach (JsonObject member in team)
+                                {
+                                    if (LongOf(member, "cellId") != cell) continue;
+                                    championId = LongOf(member, "championId");
+                                    // Before locking in, show the hovered champion.
+                                    if (championId <= 0) championId = LongOf(member, "championPickIntent");
+                                    skinId = LongOf(member, "selectedSkinId");
+                                }
+                            }
+                        }
+                        discordChampionId = championId;
+                        discordSkinId = skinId;
+                        break;
+
+                    case "GameStart":
+                    case "InProgress":
+                    case "Reconnect":
+                    case "WaitingForStats":
+                    case "PreEndOfGame":
+                    case "EndOfGame":
+                        championId = discordChampionId;
+                        skinId = discordSkinId;
+                        // Started mid-game: ask the game session instead.
+                        if (championId <= 0)
+                        {
+                            (championId, skinId) = await GameChampionAsync(puuid);
+                            discordChampionId = championId;
+                            discordSkinId = skinId;
+                        }
+                        break;
+
+                    default:
+                        discordChampionId = discordSkinId = 0;
+                        return null;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            if (championId <= 0) return null;
+            if (skin)
+            {
+                // Base skin when no skin is chosen yet.
+                if (skinId <= 0 || skinId / 1000 != championId) skinId = championId * 1000;
+                try
+                {
+                    string tile = await DataDragon.GetSkinTileUrlAsync(championId, skinId);
+                    if (!string.IsNullOrEmpty(tile)) return tile;
+                }
+                catch { }
+            }
+            return DataDragon.CommunityChampionIconUrl(championId);
+        }
+
+        /// <summary>The local player's champion and skin from the running game's session.</summary>
+        private async Task<(long ChampionId, long SkinId)> GameChampionAsync(string puuid)
+        {
+            if (string.IsNullOrEmpty(puuid)) return (0, 0);
+            if (!(await league.Get("/lol-gameflow/v1/session") is JsonObject session) ||
+                !(session.TryGetValue("gameData", out var gd) && gd is JsonObject gameData) ||
+                !(gameData.TryGetValue("playerChampionSelections", out var sv) && sv is JsonArray selections))
+                return (0, 0);
+
+            foreach (JsonObject selection in selections)
+            {
+                if (!string.Equals(StringOf(selection, "puuid"), puuid, StringComparison.OrdinalIgnoreCase)) continue;
+                long championId = LongOf(selection, "championId");
+                if (championId <= 0) break;
+                return (championId, championId * 1000 + LongOf(selection, "selectedSkinIndex"));
+            }
+            return (0, 0);
         }
 
         private async Task<string> DiscordStateFor(string phase)
@@ -255,7 +357,7 @@ namespace PoroTool
             layout.Controls.Add(MakeHeading("Discord status"));
             layout.Controls.Add(MakeMutedLabel(
                 "Shows League on your own Discord profile - queue, lobby state, your summoner icon " +
-                "and your rank. It connects to Discord by itself; there is nothing to set up.", 460));
+                "(or the champion / skin you're playing) and your rank. It connects to Discord by itself; there is nothing to set up.", 460));
 
             var enabled = new CheckBox { Text = "Show my League status on Discord", Checked = liveSettings.DiscordEnabled, Margin = new Padding(0, 4, 0, 8) };
             Theme.StyleCheckBox(enabled);
@@ -284,6 +386,24 @@ namespace PoroTool
                 if (rankQueueBox.SelectedItem is Choice c) { liveSettings.DiscordRankQueue = c.Value; liveSettings.Save(); discordLastKey = ""; }
             };
 
+            var imageBox = new ComboBox { Width = 200, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 0, 0, 10) };
+            Theme.StyleComboBox(imageBox);
+            imageBox.Items.Add(new Choice("Summoner icon", "summoner"));
+            imageBox.Items.Add(new Choice("Champion icon", "champion"));
+            imageBox.Items.Add(new Choice("Champion skin", "skin"));
+            for (int i = 0; i < imageBox.Items.Count; i++)
+                if (((Choice)imageBox.Items[i]).Value == liveSettings.DiscordImage) imageBox.SelectedIndex = i;
+            if (imageBox.SelectedIndex < 0) imageBox.SelectedIndex = 0;
+            imageBox.SelectedIndexChanged += (s, e) =>
+            {
+                if (imageBox.SelectedItem is Choice c)
+                {
+                    liveSettings.DiscordImage = c.Value;
+                    liveSettings.Save();
+                    _ = UpdateDiscordPresence();
+                }
+            };
+
             discordStateLabel = new Label
             {
                 AutoSize = true,
@@ -296,6 +416,10 @@ namespace PoroTool
             layout.Controls.Add(enabled);
             layout.Controls.Add(showRank);
             layout.Controls.Add(MakeLabeled("Rank to show", rankQueueBox));
+            layout.Controls.Add(MakeLabeled("Big image", imageBox));
+            layout.Controls.Add(MakeMutedLabel(
+                "Champion and skin show up from champ select through the end of the game; the rest of the time " +
+                "it's your summoner icon. Hovering the big image shows a link to Poro Tool on GitHub, clicking it opens the page.", 460));
             layout.Controls.Add(discordStateLabel);
             layout.Controls.Add(MakeMutedLabel(
                 "Tip: League can set its own Discord status too. Turn that off in the client " +

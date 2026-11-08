@@ -54,11 +54,13 @@ namespace PoroTool
                     WriteFrame(OpHandshake, SimpleJson.SerializeObject(handshake));
 
                     // Discord answers with a READY frame (or closes on a bad id).
-                    if (!ReadFrame(out int opcode, out string _) || opcode == OpClose)
+                    if (!ReadFrame(out int opcode, out string ready) || opcode == OpClose)
                     {
+                        Log.Write("discord: handshake on discord-ipc-" + i + " refused " + Log.Snippet(ready));
                         Disconnect();
                         continue;
                     }
+                    Log.Write("discord: connected on discord-ipc-" + i);
 
                     running = true;
                     reader = new Thread(ReadLoop) { IsBackground = true };
@@ -92,7 +94,8 @@ namespace PoroTool
         /// back to its defaults instead of showing blank rows.
         /// </summary>
         public bool SetActivity(string details, string state, long? startUnixSeconds,
-                                string largeImage, string largeText, string smallImage, string smallText)
+                                string largeImage, string largeText, string smallImage, string smallText,
+                                string largeUrl = null)
         {
             var activity = new JsonObject();
             if (!string.IsNullOrWhiteSpace(details)) activity["details"] = Trim128(details);
@@ -104,6 +107,8 @@ namespace PoroTool
             var assets = new JsonObject();
             if (!string.IsNullOrWhiteSpace(largeImage)) assets["large_image"] = largeImage.Trim();
             if (!string.IsNullOrWhiteSpace(largeText)) assets["large_text"] = Trim128(largeText);
+            // Clicking the large image opens this link (Discord ignores it without an image).
+            if (!string.IsNullOrWhiteSpace(largeUrl) && assets.ContainsKey("large_image")) assets["large_url"] = largeUrl.Trim();
             if (!string.IsNullOrWhiteSpace(smallImage)) assets["small_image"] = smallImage.Trim();
             if (!string.IsNullOrWhiteSpace(smallText)) assets["small_text"] = Trim128(smallText);
             if (assets.Count > 0) activity["assets"] = assets;
@@ -214,9 +219,12 @@ namespace PoroTool
         {
             try
             {
-                while (running && ReadFrame(out int opcode, out string _))
+                while (running && ReadFrame(out int opcode, out string json))
                 {
                     if (opcode == OpClose) break;
+                    // Rejected activities come back as ERROR events; keep them for diagnosis.
+                    if (json != null && json.IndexOf("\"ERROR\"", StringComparison.Ordinal) >= 0)
+                        Log.Write("discord: " + Log.Snippet(json, 300));
                 }
             }
             catch

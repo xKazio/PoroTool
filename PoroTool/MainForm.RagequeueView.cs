@@ -29,7 +29,15 @@ namespace PoroTool
 
         private readonly object pickBanLock = new object();
         private readonly Dictionary<string, int> pickBanAttempted = new Dictionary<string, int>();
-        private int pickBanBusy;
+        private readonly HashSet<long> pickBanDone = new HashSet<long>();
+
+        // Session updates arrive faster than the requests they trigger. Only
+        // the newest one matters, so it is parked here and a single worker
+        // drains it - an update is never dropped just because the previous
+        // one was still being handled (which used to skip the moment a turn
+        // opened and leave the pick/ban hanging).
+        private JsonObject pendingPickBanSession;
+        private int pickBanWorkerRunning;
 
         private static readonly (string Label, string Value)[] Roles =
         {
@@ -88,7 +96,7 @@ namespace PoroTool
         private void OnRagequeuePhase(string phase)
         {
             if (phase != "ChampSelect")
-                lock (pickBanLock) pickBanAttempted.Clear();
+                lock (pickBanLock) { pickBanAttempted.Clear(); pickBanDone.Clear(); }
 
             if (!ragequeueActive) return;
 
@@ -121,14 +129,28 @@ namespace PoroTool
             if (session == null) return;
             if (!liveSettings.AutoPick && !liveSettings.AutoBan && !liveSettings.AutoDodge) return;
 
-            // Session updates arrive faster than the requests they trigger;
-            // skip updates while one is still being processed.
-            if (Interlocked.CompareExchange(ref pickBanBusy, 1, 0) != 0) return;
+            Interlocked.Exchange(ref pendingPickBanSession, session);
+            if (Interlocked.CompareExchange(ref pickBanWorkerRunning, 1, 0) != 0) return;   // the running worker picks it up
+
             Task.Run(async () =>
             {
-                try { await DoAutoPickBan(session); }
-                catch { }
-                finally { Interlocked.Exchange(ref pickBanBusy, 0); }
+                while (true)
+                {
+                    var next = Interlocked.Exchange(ref pendingPickBanSession, null);
+                    if (next != null)
+                    {
+                        try { await DoAutoPickBan(next); }
+                        catch (Exception ex) { Log.Write("auto pick/ban: " + ex.Message); }
+                        continue;
+                    }
+
+                    Interlocked.Exchange(ref pickBanWorkerRunning, 0);
+                    // An update may have slipped in between the last check and
+                    // the release; take the worker back if nobody else did.
+                    if (Volatile.Read(ref pendingPickBanSession) == null ||
+                        Interlocked.CompareExchange(ref pickBanWorkerRunning, 1, 0) != 0)
+                        return;
+                }
             });
         }
 
@@ -156,22 +178,23 @@ namespace PoroTool
                     long actionId = LongOf(action, "id");
                     string type = StringOf(action, "type");
                     bool inProgress = BoolOf(action, "isInProgress");
+                    lock (pickBanLock) { if (pickBanDone.Contains(actionId)) continue; }
 
                     // Locking and banning get several tries: the client rejects
                     // them for a moment right as the turn opens, and a single
                     // shot would silently give up.
                     if (type == "pick" && liveSettings.AutoPick && liveSettings.PickChampionId > 0)
                     {
-                        if (inProgress && Attempt(actionId + ":lock", 6))
-                            await PatchChampSelectAction(actionId, liveSettings.PickChampionId, complete: true, "pick");
+                        if (inProgress && Attempt(actionId + ":lock", 4))
+                            await CompleteChampSelectAction(actionId, liveSettings.PickChampionId, "pick");
                         else if (phase == "PLANNING" && LongOf(action, "championId") != liveSettings.PickChampionId &&
                                  Attempt(actionId + ":hover", 3))
-                            await PatchChampSelectAction(actionId, liveSettings.PickChampionId, complete: false, "hover");
+                            await HoverChampSelectAction(actionId, liveSettings.PickChampionId);
                     }
                     else if (type == "ban" && liveSettings.AutoBan && liveSettings.BanChampionId > 0 &&
-                             inProgress && Attempt(actionId + ":ban", 6))
+                             inProgress && Attempt(actionId + ":ban", 4))
                     {
-                        await PatchChampSelectAction(actionId, liveSettings.BanChampionId, complete: true, "ban");
+                        await CompleteChampSelectAction(actionId, liveSettings.BanChampionId, "ban");
                     }
                 }
             }
@@ -247,12 +270,20 @@ namespace PoroTool
                         UpdateAutoDodgeUi();
                     }
 
-                    await DodgeReliably();
+                    var outcome = await DodgeAsync(allowRestart: true, gracefulMs: await GracefulCloseMsAsync());
+                    if (!Dodged(outcome))
+                    {
+                        requeuePending = false;
+                        SetStatusSafe(DodgeOutcomeText(outcome, "Auto-dodge of " + name), DodgeOutcomeKind(outcome));
+                        return true;
+                    }
+
                     if (!once) _ = Task.Run(RequeueAfterDodgeAsync);
                     else
                     {
                         requeuePending = false;
-                        SetStatusSafe("Dodged " + name + ". Auto-dodge turned itself off (dodge only once).", StatusKind.Success);
+                        SetStatusSafe(DodgeOutcomeText(outcome, "Dodged " + name) + " Auto-dodge turned itself off (dodge only once).",
+                                      DodgeOutcomeKind(outcome));
                     }
                     return true;
                 }
@@ -264,31 +295,43 @@ namespace PoroTool
         /// After an auto-dodge: get back into the configured queue as soon as
         /// the dodge penalty allows. The penalty length is read from the
         /// matchmaking search-state errors, so the re-queue fires the moment
-        /// the timer runs out. Unticking auto-dodge cancels the wait.
+        /// the timer runs out. A restart-dodge takes the client away for
+        /// 15-30 s and it then needs a moment to log back in, so failures in
+        /// that window are retried instead of giving up. Unticking auto-dodge
+        /// cancels the wait.
         /// </summary>
         private async Task RequeueAfterDodgeAsync()
         {
             try
             {
-                for (int attempt = 0; attempt < 6; attempt++)
+                var giveUpAt = DateTime.UtcNow.AddMinutes(3);
+                string lastProblem = "";
+
+                while (DateTime.UtcNow < giveUpAt)
                 {
                     await Task.Delay(3000);
-                    if (!liveSettings.AutoDodge || !league.IsConnected) return;
+                    if (!liveSettings.AutoDodge) return;
+
+                    if (!league.IsConnected)
+                    {
+                        SetStatusSafe("Dodged - waiting for League to come back to re-queue...", StatusKind.Info);
+                        continue;
+                    }
 
                     // Only keep going while sitting in (or just out of) a lobby;
                     // anything else means the player moved on.
-                    if (!(await league.Get("/lol-gameflow/v1/gameflow-phase") is string phase)) return;
+                    if (!(await league.Get("/lol-gameflow/v1/gameflow-phase") is string phase)) continue;
                     if (phase == "Matchmaking" || phase == "ReadyCheck" || phase == "ChampSelect" || phase == "InProgress") return;
-                    if (phase != "Lobby" && phase != "None") return;
+                    if (phase != "Lobby" && phase != "None") continue;
 
                     if (await league.Get("/lol-lobby/v2/lobby") == null)
                     {
-                        var (lobbyStatus, _) = await league.Request("POST", "/lol-lobby/v2/lobby",
+                        var (lobbyStatus, lobbyContent) = await league.Request("POST", "/lol-lobby/v2/lobby",
                             "{\"queueId\": " + liveSettings.QueueId + "}");
                         if (lobbyStatus < 200 || lobbyStatus >= 300)
                         {
-                            SetStatusSafe("Re-queue failed: could not recreate the lobby (HTTP " + lobbyStatus + ").", StatusKind.Error);
-                            return;
+                            lastProblem = "could not recreate the lobby (HTTP " + lobbyStatus + ErrorDetail(lobbyContent) + ")";
+                            continue;   // usually the client is still logging in
                         }
                         // Positional queues need roles; harmless elsewhere.
                         await league.Put("/lol-lobby/v2/lobby/members/localMember/position-preferences",
@@ -311,28 +354,31 @@ namespace PoroTool
                     double penalty = PenaltySecondsOf(state);
                     if (penalty <= 0)
                     {
-                        if (attempt == 5)
-                            SetStatusSafe("Re-queue failed - start the queue manually.", StatusKind.Error);
+                        lastProblem = "the queue did not start";
                         continue;   // transient state; try again in a few seconds
                     }
 
                     // Sit out the penalty, then loop around and search again.
                     var until = DateTime.UtcNow.AddSeconds(penalty + 1);
+                    giveUpAt = until.AddMinutes(1);
                     while (true)
                     {
                         var left = until - DateTime.UtcNow;
                         if (left <= TimeSpan.Zero) break;
-                        if (!liveSettings.AutoDodge || !league.IsConnected) return;
+                        if (!liveSettings.AutoDodge) return;
 
                         SetStatusSafe("Dodge timer: " + left.ToString(left.TotalHours >= 1 ? @"h\:mm\:ss" : @"m\:ss") +
                                       " - re-queueing automatically.", StatusKind.Info);
                         await Task.Delay(left > TimeSpan.FromSeconds(10) ? TimeSpan.FromSeconds(10) : left);
                     }
                 }
+
+                SetStatusSafe("Re-queue failed" + (lastProblem.Length > 0 ? ": " + lastProblem : "") + " - start the queue manually.", StatusKind.Error);
             }
-            catch
+            catch (Exception ex)
             {
-                // Client closed mid-wait; nothing to clean up.
+                // Client closed mid-wait, or a request failed outright.
+                Log.Write("re-queue after dodge: " + ex.Message);
             }
             finally
             {
@@ -357,42 +403,81 @@ namespace PoroTool
             return max;
         }
 
-        private async Task PatchChampSelectAction(long actionId, long championId, bool complete, string verb)
+        /// <summary>Hovers a champion on the action (the pick intent in planning).</summary>
+        private async Task HoverChampSelectAction(long actionId, long championId)
+        {
+            var (status, content) = await league.Request("PATCH", "/lol-champ-select/v1/session/actions/" + actionId,
+                                                        "{\"championId\": " + championId + "}");
+            Log.Write("hover action " + actionId + " champion " + championId + " -> HTTP " + status + " " + Log.Snippet(content));
+        }
+
+        /// <summary>
+        /// Locks in a pick or a ban: one PATCH with completed=true - exactly
+        /// what the client's own Lock In / Ban button sends. (POST .../complete
+        /// answers 204 but leaves the action open; trusting that 204 is what
+        /// left picks and bans stuck on hover.) Success is only reported once
+        /// the session really shows the action completed.
+        /// </summary>
+        private async Task CompleteChampSelectAction(long actionId, long championId, string verb)
         {
             string url = "/lol-champ-select/v1/session/actions/" + actionId;
+            string body = "{\"championId\": " + championId + ", \"completed\": true}";
+            int status = 0;
+            string content = "";
+            var result = (Found: true, Completed: false, ChampionId: 0L);
 
-            // Hover first, then complete as a separate call - the same order the
-            // client itself uses. The hover result must NOT gate the lock: it
-            // fails harmlessly when the champion is already hovered, and that
-            // used to leave picks stuck on hover and bans doing nothing at all.
-            var (status, content) = await league.Request("PATCH", url, "{\"championId\": " + championId + "}");
-
-            if (complete)
+            for (int attempt = 0; attempt < 3; attempt++)
             {
-                for (int attempt = 0; attempt < 3; attempt++)
+                if (attempt > 0) await Task.Delay(400);
+
+                (status, content) = await league.Request("PATCH", url, body);
+                Log.Write(verb + " action " + actionId + " champion " + championId + " (try " + (attempt + 1) + ") -> HTTP " +
+                          status + " " + Log.Snippet(content));
+
+                // The session takes a moment to reflect the lock.
+                for (int check = 0; check < 4; check++)
                 {
                     await Task.Delay(150);
+                    result = await ChampSelectActionStateAsync(actionId);
+                    if (result.Completed || !result.Found) break;
+                }
+                if (result.Completed || !result.Found) break;
+            }
 
-                    (status, content) = await league.Request("POST", url + "/complete", "{}");
-                    if (status >= 200 && status < 300) break;
+            if (result.Completed)
+            {
+                lock (pickBanLock) pickBanDone.Add(actionId);
+                string name = await ChampionNameById(result.ChampionId > 0 ? result.ChampionId : championId);
+                SetStatusSafe((verb == "ban" ? "Banned " : "Locked in ") + name + ".", StatusKind.Success);
+                return;
+            }
 
-                    // Older client builds only accept the one-shot form.
-                    (status, content) = await league.Request("PATCH", url,
-                        "{\"championId\": " + championId + ", \"completed\": true}");
-                    if (status >= 200 && status < 300) break;
+            string wanted = await ChampionNameById(championId);
+            SetStatusSafe("Auto-" + verb + " of " + wanted + " failed (HTTP " + status + ErrorDetail(content) +
+                          (result.Found ? "" : ", the turn already ended") + ") - do it manually.", StatusKind.Error);
+        }
+
+        /// <summary>Reads one action back from a fresh champ-select session.</summary>
+        private async Task<(bool Found, bool Completed, long ChampionId)> ChampSelectActionStateAsync(long actionId)
+        {
+            try
+            {
+                if (!(await league.Get("/lol-champ-select/v1/session") is JsonObject session) ||
+                    !(session.TryGetValue("actions", out var av) && av is JsonArray rounds))
+                    return (false, false, 0);
+
+                foreach (var roundValue in rounds)
+                {
+                    if (!(roundValue is JsonArray round)) continue;
+                    foreach (var actionValue in round)
+                    {
+                        if (actionValue is JsonObject action && LongOf(action, "id") == actionId)
+                            return (true, BoolOf(action, "completed"), LongOf(action, "championId"));
+                    }
                 }
             }
-
-            string name = await ChampionNameById(championId);
-            if (status >= 200 && status < 300)
-            {
-                if (verb == "pick") SetStatusSafe("Locked in " + name + ".", StatusKind.Success);
-                else if (verb == "ban") SetStatusSafe("Banned " + name + ".", StatusKind.Success);
-            }
-            else
-            {
-                SetStatusSafe("Auto-" + verb + " of " + name + " failed (HTTP " + status + ErrorDetail(content) + ") - do it manually.", StatusKind.Error);
-            }
+            catch { }
+            return (false, false, 0);
         }
 
         private static string ErrorDetail(string content)
@@ -651,7 +736,8 @@ namespace PoroTool
             layout.Controls.Add(autoDodgeCheck);
             layout.Controls.Add(dodgeOnceCheck);
             layout.Controls.Add(goButton);
-            layout.Controls.Add(MakeMutedLabel("Normal queue rules still apply (dodge timers, autofill). ARAM and Swiftplay have no pick phase, so auto pick/ban/dodge simply do nothing there.", 460));
+            layout.Controls.Add(MakeMutedLabel("Normal queue rules still apply (dodge timers, autofill). ARAM and Swiftplay have no pick phase, so auto pick/ban/dodge simply do nothing there. " +
+                                               "Riot no longer lets apps leave ranked/normal champ select, so an auto-dodge there closes League and starts it again before re-queueing.", 460));
             panel.Controls.Add(layout);
 
             FillQueueBox(queueBox, FallbackQueues);

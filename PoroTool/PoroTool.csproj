@@ -10,7 +10,7 @@
     <ApplicationIcon>logo.ico</ApplicationIcon>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <Product>Poro Tool</Product>
-    <Version>1.5.0-a</Version>
+    <Version>1.6.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

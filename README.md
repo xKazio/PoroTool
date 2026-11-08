@@ -15,9 +15,10 @@ A small desktop utility for League of Legends that does the boring loot work for
 - **Lobby reveal** — shows your champ-select teammates' Riot IDs (even while names are hidden), read from your local client.
 - **Auto-accept** the ready check.
 - **Multi-search** — open an OP.GG / DeepLoL / U.GG / Tracker.gg lookup for the revealed players.
-- **Dodge** — leave champ select instantly, or arm a last-second dodge that fires just before the game starts.
-- **Ragequeue** — one click to start your usual queue, with optional auto pick, auto ban and auto dodge.
-- **Discord status** — shows League on your Discord profile with your summoner icon and rank. No setup: it connects on its own.
+- **Dodge** — leave champ select now, or arm a last-second dodge that fires just before the game starts. Riot no longer lets apps leave ranked/normal champ select, so there Poro Tool closes League and starts it again (a normal dodge, ~15–30 s); where the client still allows quitting it just leaves.
+- **Ragequeue** — one click to start your usual queue, with optional auto pick & lock, auto ban and auto dodge (re-queues after the dodge timer).
+- **Discord status** — shows League on your Discord profile with your rank and, as the big image, your summoner icon or the champion / skin you're playing. No setup: it connects on its own.
+- **Update notifications** — tells you when a new version is on GitHub and opens the release page.
 
 Poro Tool talks to the official local League Client API (LCU) — the same one the client itself uses. It doesn't touch the game, doesn't read memory and doesn't automate gameplay.
 
@@ -36,6 +37,8 @@ Grab `PoroTool.exe` from the [latest release](https://github.com/xKazio/PoroTool
 3. Pick a loot category, adjust the amounts, choose *Disenchant* / *Upgrade* / *Forge* and hit **Process**.
 
 If it doesn't connect, give it a few seconds after logging in. Running Poro Tool as administrator can help on some setups.
+
+If an automation (auto pick/ban, dodge) misbehaves, `%LocalAppData%\PoroTool\poro.log` shows every request it sent and what the client answered.
 
 ## Building
 

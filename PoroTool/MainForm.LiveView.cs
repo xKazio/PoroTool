@@ -29,8 +29,6 @@ namespace PoroTool
         private CancellationTokenSource revealCts;
         private volatile string currentPhase = "";
 
-        private bool dodgeArmed;
-        private bool dodgeScheduled;
         private volatile bool suppressDodgeEvent;
 
         // Live view controls; null while the view is not on screen.
@@ -43,7 +41,6 @@ namespace PoroTool
             liveSettings = LiveSettings.Load();
             league.OnConnected += OnLiveConnected;
             league.GameflowPhaseChanged += OnGameflowPhase;
-            league.ChampSelectSessionChanged += OnChampSelectSession;
             InitRagequeue();
         }
 
@@ -68,16 +65,10 @@ namespace PoroTool
 
             if (phase == "ReadyCheck") _ = AutoAcceptAsync();
 
-            if (phase == "ChampSelect")
-            {
-                StartReveal();
-            }
-            else
-            {
-                StopReveal();
-                ResetDodge();   // leaving champ select disarms the last-second dodge
-            }
+            if (phase == "ChampSelect") StartReveal();
+            else StopReveal();
 
+            OnDodgePhase(currentPhase);
             UpdateLiveUi();
         }
 
@@ -238,117 +229,6 @@ namespace PoroTool
             }
         }
 
-        // ---------- Dodge ----------
-
-        // LCDS proxy call that quits champ select. The args are sent raw (like
-        // the reveal tool) and the call is repeated until we actually leave
-        // champ select, because a single quitV2 is flaky and often needs a few
-        // tries before it registers. Keeps the client running.
-        private async Task DodgeReliably()
-        {
-            for (int attempt = 0; attempt < 6; attempt++)
-            {
-                try
-                {
-                    await league.Request("POST",
-                        "/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]",
-                        "{}");
-                }
-                catch { }
-
-                await Task.Delay(250);
-
-                try
-                {
-                    if (!(await league.Get("/lol-gameflow/v1/gameflow-phase") is string phase) || phase != "ChampSelect")
-                        return;   // out of champ select - the dodge landed
-                }
-                catch { }
-            }
-        }
-
-        private async void DodgeNow()
-        {
-            if (!EnsureConnected()) return;
-
-            SetStatusSafe("Dodging champ select...", StatusKind.Info);
-            try
-            {
-                await DodgeReliably();
-                SetStatusSafe("Dodged champ select.", StatusKind.Success);
-            }
-            catch (Exception ex)
-            {
-                SetStatusSafe("Dodge failed: " + ex.Message, StatusKind.Error);
-            }
-        }
-
-        private void ResetDodge()
-        {
-            dodgeArmed = false;
-            dodgeScheduled = false;
-            UpdateDodgeUi();
-        }
-
-        private void OnChampSelectSession(JsonObject session)
-        {
-            if (!dodgeArmed || dodgeScheduled || session == null) return;
-            if (!(session.TryGetValue("timer", out var tv) && tv is JsonObject timer)) return;
-
-            timer.TryGetValue("phase", out var phaseValue);
-            if ((phaseValue as string) != "FINALIZATION") return;
-
-            timer.TryGetValue("adjustedTimeLeftInPhase", out var leftValue);
-            long left = leftValue == null ? 0 : Convert.ToInt64(leftValue);
-
-            dodgeScheduled = true;
-            // Fire before the phase ends, leaving room for the retry loop to land.
-            int wait = (int)Math.Max(0, left - 1500);
-            SetStatusSafe("Last-second dodge: quitting in ~" + Math.Round(wait / 1000.0) + "s.", StatusKind.Info);
-
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(wait);
-                    if (!dodgeArmed) return;   // disarmed while waiting
-                    await DodgeReliably();
-                    SetStatusSafe("Dodged at the last second.", StatusKind.Success);
-                }
-                catch (Exception ex)
-                {
-                    SetStatusSafe("Last-second dodge failed: " + ex.Message, StatusKind.Error);
-                }
-                finally
-                {
-                    dodgeArmed = false;
-                    dodgeScheduled = false;
-                    UpdateDodgeUi();
-                }
-            });
-        }
-
-        private void UpdateDodgeUi()
-        {
-            if (InvokeRequired)
-            {
-                try { BeginInvoke((Action)UpdateDodgeUi); } catch { }
-                return;
-            }
-
-            var cb = dodgeArmCheckBox;
-            if (cb == null || cb.IsDisposed) return;
-
-            // Reflect the armed state without re-triggering the user handler
-            // (e.g. when the dodge fired or champ select ended).
-            if (cb.Checked != dodgeArmed)
-            {
-                suppressDodgeEvent = true;
-                cb.Checked = dodgeArmed;
-                suppressDodgeEvent = false;
-            }
-        }
-
         // ---------- View ----------
 
         private void lobbyRevealButton_Click(object sender, EventArgs e)
@@ -421,11 +301,12 @@ namespace PoroTool
             dodgeArmCheckBox.CheckedChanged += (s, e) =>
             {
                 if (suppressDodgeEvent) return;
-                dodgeArmed = dodgeArmCheckBox.Checked;
-                dodgeScheduled = false;
-                SetStatus(dodgeArmed
-                    ? "Armed: Poro Tool will dodge just before the game starts. Uncheck to cancel."
-                    : "Last-second dodge cancelled.", dodgeArmed ? StatusKind.Success : StatusKind.Info);
+                bool armed = dodgeArmCheckBox.Checked;
+                SetLastSecondDodge(armed);
+                SetStatus(!armed ? "Last-second dodge cancelled."
+                          : currentPhase == "ChampSelect" ? "Armed: Poro Tool will dodge just before the game starts. Untick to cancel."
+                          : "Armed for your next champ select: Poro Tool will dodge just before that game starts. Untick to cancel.",
+                          armed ? StatusKind.Success : StatusKind.Info);
             };
 
             layout.Controls.Add(MakeLabeled("Lookup site", providerBox));
@@ -436,7 +317,8 @@ namespace PoroTool
             layout.Controls.Add(MakeHeading("Revealed players"));
             layout.Controls.Add(revealListPanel);
             layout.Controls.Add(MakeHeading("Dodge"));
-            layout.Controls.Add(MakeMutedLabel("Leaves champ select (normal dodge penalty) but keeps the client open. Tick last-second to dodge just before the game starts - untick any time to cancel.", 440));
+            layout.Controls.Add(MakeMutedLabel("Leaves champ select (normal dodge penalty). Where the client allows quitting it just leaves; in ranked and normal games Riot no longer allows that, so Poro Tool closes League and starts it again (about 15-30 s). " +
+                                               "Last second fires right before the game starts and covers one champ select - untick any time to cancel.", 440));
             layout.Controls.Add(dodgeNowButton);
             layout.Controls.Add(dodgeArmCheckBox);
             panel.Controls.Add(layout);

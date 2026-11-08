@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Authentication;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using WebSocketSharp;
 
@@ -18,6 +19,9 @@ namespace PoroTool
     {
         private readonly HttpClient http;
         private readonly HttpClient riotHttp;
+
+        private readonly object connectLock = new object();
+        private int retryLoopRunning;
 
         private WebSocket socket;
         private string port;
@@ -39,6 +43,15 @@ namespace PoroTool
         /// <summary>True once the Riot Client chat port was found (needed for the reveal).</summary>
         public bool HasRiotClient => riotPort != null;
 
+        /// <summary>
+        /// The Riot Client API port/token from the last League command line.
+        /// Unlike <see cref="HasRiotClient"/> these survive the League client
+        /// closing - the Riot Client keeps running - so a restart-dodge can
+        /// still ask it to start League again.
+        /// </summary>
+        public string LastRiotClientPort { get; private set; }
+        public string LastRiotClientToken { get; private set; }
+
         public LeagueConnection()
         {
             // Both local clients use a self-signed certificate, so validation has to be skipped.
@@ -59,63 +72,121 @@ namespace PoroTool
 
         private void TryConnectOrRetry()
         {
-            if (IsConnected) return;
-            TryConnect();
-            Task.Delay(2000).ContinueWith(_ => TryConnectOrRetry());
+            // Exactly one retry loop at a time. Several used to pile up (every
+            // failed websocket connect raised OnClose, which started another
+            // loop), and two loops could connect twice and deliver every
+            // event twice.
+            if (Interlocked.CompareExchange(ref retryLoopRunning, 1, 0) != 0) return;
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    while (!IsConnected)
+                    {
+                        TryConnect();
+                        if (!IsConnected) await Task.Delay(2000);
+                    }
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref retryLoopRunning, 0);
+                }
+
+                // A disconnect right after connecting may have been ignored
+                // while this loop was still marked as running.
+                if (!IsConnected) TryConnectOrRetry();
+            });
         }
 
         private void TryConnect()
         {
+            WebSocket candidate = null;
             try
             {
-                if (IsConnected) return;
-
-                var credentials = LeagueUtils.FindClientCredentials();
-                if (credentials == null) return;
-                var (authToken, clientPort, riotToken, clientRiotPort) = credentials.Value;
-
-                var basicAuth = Convert.ToBase64String(Encoding.ASCII.GetBytes("riot:" + authToken));
-                http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", basicAuth);
-
-                // The Riot Client chat service lives on its own port with its own token.
-                if (riotToken.Length > 0 && clientRiotPort.Length > 0)
+                lock (connectLock)
                 {
-                    var riotAuth = Convert.ToBase64String(Encoding.ASCII.GetBytes("riot:" + riotToken));
-                    riotHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", riotAuth);
-                    riotPort = clientRiotPort;
+                    if (IsConnected) return;
+
+                    var credentials = LeagueUtils.FindClientCredentials();
+                    if (credentials == null) return;
+                    var (authToken, clientPort, riotToken, clientRiotPort) = credentials.Value;
+
+                    var basicAuth = Convert.ToBase64String(Encoding.ASCII.GetBytes("riot:" + authToken));
+                    http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", basicAuth);
+
+                    // The Riot Client chat service lives on its own port with its own token.
+                    if (riotToken.Length > 0 && clientRiotPort.Length > 0)
+                    {
+                        var riotAuth = Convert.ToBase64String(Encoding.ASCII.GetBytes("riot:" + riotToken));
+                        riotHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", riotAuth);
+                        riotPort = clientRiotPort;
+                        LastRiotClientPort = clientRiotPort;
+                        LastRiotClientToken = riotToken;
+                    }
+
+                    candidate = new WebSocket("wss://127.0.0.1:" + clientPort + "/", "wamp");
+                    candidate.SetCredentials("riot", authToken, true);
+                    candidate.SslConfiguration.EnabledSslProtocols = SslProtocols.Tls12;
+                    candidate.SslConfiguration.ServerCertificateValidationCallback = (msg, cert, chain, errors) => true;
+                    var self = candidate;
+                    candidate.OnClose += (s, e) => HandleDisconnect(self);
+                    candidate.OnMessage += HandleMessage;
+                    candidate.Connect();
+
+                    // Connect() doesn't throw when the client isn't accepting
+                    // yet (it is still starting up); it just leaves the socket
+                    // closed. Treat that as "not yet" instead of connected.
+                    if (candidate.ReadyState != WebSocketState.Open)
+                    {
+                        try { ((IDisposable)candidate).Dispose(); } catch { }
+                        riotPort = null;
+                        return;
+                    }
+
+                    // Subscribe to the events we need (WAMP opcode 5 = SUBSCRIBE).
+                    candidate.Send("[5,\"OnJsonApiEvent_lol-gameflow_v1_gameflow-phase\"]");
+                    candidate.Send("[5,\"OnJsonApiEvent_lol-champ-select_v1_session\"]");
+
+                    socket = candidate;
+                    port = clientPort;
+                    IsConnected = true;
                 }
 
-                socket = new WebSocket("wss://127.0.0.1:" + clientPort + "/", "wamp");
-                socket.SetCredentials("riot", authToken, true);
-                socket.SslConfiguration.EnabledSslProtocols = SslProtocols.Tls12;
-                socket.SslConfiguration.ServerCertificateValidationCallback = (msg, cert, chain, errors) => true;
-                socket.OnClose += HandleDisconnect;
-                socket.OnMessage += HandleMessage;
-                socket.Connect();
-
-                // Subscribe to the events we need (WAMP opcode 5 = SUBSCRIBE).
-                socket.Send("[5,\"OnJsonApiEvent_lol-gameflow_v1_gameflow-phase\"]");
-                socket.Send("[5,\"OnJsonApiEvent_lol-champ-select_v1_session\"]");
-
-                port = clientPort;
-                IsConnected = true;
                 OnConnected?.Invoke();
             }
             catch
             {
-                port = null;
-                IsConnected = false;
+                lock (connectLock)
+                {
+                    if (candidate != null && !ReferenceEquals(socket, candidate))
+                    {
+                        try { ((IDisposable)candidate).Dispose(); } catch { }
+                    }
+                    if (!ReferenceEquals(socket, candidate) || socket == null)
+                    {
+                        port = null;
+                        IsConnected = false;
+                    }
+                }
             }
         }
 
-        private void HandleDisconnect(object sender, CloseEventArgs args)
+        private void HandleDisconnect(WebSocket closed)
         {
-            port = null;
-            riotPort = null;
-            socket = null;
-            IsConnected = false;
-            OnDisconnected?.Invoke();
+            lock (connectLock)
+            {
+                // Only the live socket counts; a socket that never finished
+                // connecting (or was replaced) closing is not a disconnect.
+                if (!ReferenceEquals(closed, socket)) return;
 
+                port = null;
+                riotPort = null;
+                socket = null;
+                IsConnected = false;
+            }
+
+            OnDisconnected?.Invoke();
             TryConnectOrRetry();
         }
 

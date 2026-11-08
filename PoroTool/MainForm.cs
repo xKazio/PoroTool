@@ -92,10 +92,20 @@ namespace PoroTool
         private void MainForm_Load(object sender, EventArgs e)
         {
             league = new LeagueConnection();
-            league.OnConnected += () => SetStatusSafe("Connected to the League client.", StatusKind.Success);
-            league.OnDisconnected += () => SetStatusSafe("League client closed. Waiting for it to come back...", StatusKind.Error);
+            league.OnConnected += () =>
+            {
+                bool afterDodge = restartDodgeInProgress;
+                restartDodgeInProgress = false;
+                SetStatusSafe(afterDodge ? "League is back after the dodge." : "Connected to the League client.", StatusKind.Success);
+            };
+            league.OnDisconnected += () =>
+            {
+                if (restartDodgeInProgress) SetStatusSafe("Dodged - League is restarting...", StatusKind.Info);
+                else SetStatusSafe("League client closed. Waiting for it to come back...", StatusKind.Error);
+            };
             InitLive();
             InitDiscord();
+            InitUpdates();
             SetStatus("Waiting for the League client...");
             FillProcessOptions();
         }

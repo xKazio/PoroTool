@@ -98,6 +98,69 @@ namespace PoroTool
             return list;
         }
 
+        private const string GameDataUrl = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/";
+        private static readonly Dictionary<long, Dictionary<long, string>> skinTilesByChampion = new Dictionary<long, Dictionary<long, string>>();
+
+        /// <summary>Square champion icon on CommunityDragon (public, so Discord can show it).</summary>
+        public static string CommunityChampionIconUrl(long championId)
+        {
+            return GameDataUrl + "v1/champion-icons/" + championId + ".png";
+        }
+
+        /// <summary>
+        /// Square tile of a skin's splash art on CommunityDragon. Chromas and
+        /// tiered skin stages have no tile of their own, so they map to the
+        /// skin they belong to; unknown ids fall back to the base skin.
+        /// Returns null when the champion data can't be loaded.
+        /// </summary>
+        public static async Task<string> GetSkinTileUrlAsync(long championId, long skinId)
+        {
+            Dictionary<long, string> tiles;
+            lock (skinTilesByChampion) skinTilesByChampion.TryGetValue(championId, out tiles);
+
+            if (tiles == null)
+            {
+                var json = await http.GetStringAsync(GameDataUrl + "v1/champions/" + championId + ".json");
+                var root = (JsonObject)SimpleJson.DeserializeObject(json);
+                tiles = new Dictionary<long, string>();
+
+                foreach (JsonObject skin in (JsonArray)root["skins"])
+                {
+                    string tile = skin.TryGetValue("tilePath", out var tp) ? tp as string : null;
+                    if (string.IsNullOrEmpty(tile)) continue;
+                    tiles[Convert.ToInt64(skin["id"])] = tile;
+
+                    if (skin.TryGetValue("chromas", out var cv) && cv is JsonArray chromas)
+                        foreach (JsonObject chroma in chromas)
+                            tiles[Convert.ToInt64(chroma["id"])] = tile;
+
+                    if (skin.TryGetValue("questSkinInfo", out var qv) && qv is JsonObject quest &&
+                        quest.TryGetValue("tiers", out var tv) && tv is JsonArray tiers)
+                    {
+                        foreach (JsonObject tier in tiers)
+                        {
+                            string tierTile = tier.TryGetValue("tilePath", out var ttp) ? ttp as string : null;
+                            tiles[Convert.ToInt64(tier["id"])] = string.IsNullOrEmpty(tierTile) ? tile : tierTile;
+                        }
+                    }
+                }
+
+                lock (skinTilesByChampion) skinTilesByChampion[championId] = tiles;
+            }
+
+            if (!tiles.TryGetValue(skinId, out var path) && !tiles.TryGetValue(championId * 1000, out path))
+                return null;
+            return AssetUrl(path);
+        }
+
+        /// <summary>Maps a client asset path ("/lol-game-data/assets/ASSETS/...") to its CommunityDragon url.</summary>
+        private static string AssetUrl(string path)
+        {
+            const string prefix = "/lol-game-data/assets/";
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) path = path.Substring(prefix.Length);
+            return GameDataUrl + path.TrimStart('/').ToLowerInvariant();
+        }
+
         public static string ChampionIconUrl(string v, string alias)
         {
             return "https://ddragon.leagueoflegends.com/cdn/" + v + "/img/champion/" + alias + ".png";
