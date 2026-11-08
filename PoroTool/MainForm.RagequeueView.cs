@@ -88,6 +88,7 @@ namespace PoroTool
         private void InitRagequeue()
         {
             league.GameflowPhaseChanged += OnRagequeuePhase;
+            league.OnDisconnected += () => OnRagequeuePhase("None");
             league.ChampSelectSessionChanged += OnRagequeueChampSelect;
         }
 
@@ -164,7 +165,7 @@ namespace PoroTool
 
             if (!(session.TryGetValue("actions", out var actionsValue) && actionsValue is JsonArray rounds)) return;
 
-            if (await TryAutoDodge(rounds, myCell)) return;
+            if (await TryAutoDodge(rounds, myCell, LongOf(session, "queueId"))) return;
 
             foreach (var roundValue in rounds)
             {
@@ -237,7 +238,7 @@ namespace PoroTool
         /// Dodges (and later re-queues) when anyone else has locked in one of
         /// the champions on the dodge list. Returns true when the dodge fired.
         /// </summary>
-        private async Task<bool> TryAutoDodge(JsonArray rounds, long myCell)
+        private async Task<bool> TryAutoDodge(JsonArray rounds, long myCell, long queueId)
         {
             if (!liveSettings.AutoDodge || liveSettings.DodgeChampionIds.Count == 0) return false;
 
@@ -278,7 +279,7 @@ namespace PoroTool
                         return true;
                     }
 
-                    if (!once) _ = Task.Run(RequeueAfterDodgeAsync);
+                    if (!once) _ = Task.Run(() => RequeueAfterDodgeAsync(queueId));
                     else
                     {
                         requeuePending = false;
@@ -300,8 +301,11 @@ namespace PoroTool
         /// that window are retried instead of giving up. Unticking auto-dodge
         /// cancels the wait.
         /// </summary>
-        private async Task RequeueAfterDodgeAsync()
+        private async Task RequeueAfterDodgeAsync(long dodgedQueueId)
         {
+            // Back into the queue that was dodged, not whatever the Ragequeue
+            // view has selected (a restart-dodge loses the lobby).
+            long queueId = dodgedQueueId > 0 ? dodgedQueueId : liveSettings.QueueId;
             try
             {
                 var giveUpAt = DateTime.UtcNow.AddMinutes(3);
@@ -327,7 +331,7 @@ namespace PoroTool
                     if (await league.Get("/lol-lobby/v2/lobby") == null)
                     {
                         var (lobbyStatus, lobbyContent) = await league.Request("POST", "/lol-lobby/v2/lobby",
-                            "{\"queueId\": " + liveSettings.QueueId + "}");
+                            "{\"queueId\": " + queueId + "}");
                         if (lobbyStatus < 200 || lobbyStatus >= 300)
                         {
                             lastProblem = "could not recreate the lobby (HTTP " + lobbyStatus + ErrorDetail(lobbyContent) + ")";

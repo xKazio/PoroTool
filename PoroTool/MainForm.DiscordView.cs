@@ -71,15 +71,9 @@ namespace PoroTool
             discordLastKey = "";
             discordTimer.Start();
 
-            if (!discord.Connect(LeagueAppId))
-            {
-                UpdateDiscordUi("Waiting for Discord...");
-                if (announce) SetStatus("Discord isn't running yet - the status turns on by itself once it is.", StatusKind.Info);
-                return;   // the timer keeps retrying
-            }
-
+            // The first update connects (off the UI thread) and publishes.
             _ = UpdateDiscordPresence();
-            if (announce) SetStatus("Discord status enabled.", StatusKind.Success);
+            if (announce) SetStatus("Discord status enabled. It shows up as soon as Discord is running.", StatusKind.Success);
         }
 
         private void StopDiscord(bool announce)
@@ -93,13 +87,18 @@ namespace PoroTool
             if (announce) SetStatus("Discord status disabled.", StatusKind.Info);
         }
 
+        private bool discordUpdating;
+
         private async Task UpdateDiscordPresence()
         {
-            if (!liveSettings.DiscordEnabled) return;
+            if (!liveSettings.DiscordEnabled || discordUpdating) return;
+            discordUpdating = true;
 
             try
             {
-                if (!discord.IsConnected && !discord.Connect(LeagueAppId))
+                // Connecting probes ten pipes with a timeout each, which froze
+                // the window for seconds while Discord was closed - off the UI thread.
+                if (!discord.IsConnected && !await Task.Run(() => discord.Connect(LeagueAppId)))
                 {
                     UpdateDiscordUi("Waiting for Discord...");
                     return;
@@ -154,6 +153,10 @@ namespace PoroTool
             {
                 // Client or Discord went away mid-update; the next tick retries.
             }
+            finally
+            {
+                discordUpdating = false;
+            }
         }
 
         /// <summary>
@@ -193,14 +196,18 @@ namespace PoroTool
                     case "WaitingForStats":
                     case "PreEndOfGame":
                     case "EndOfGame":
-                        championId = discordChampionId;
-                        skinId = discordSkinId;
-                        // Started mid-game: ask the game session instead.
-                        if (championId <= 0)
+                        // The game session is authoritative (late trades and skin
+                        // changes); the champ-select sample is the fallback.
+                        (championId, skinId) = await GameChampionAsync(puuid);
+                        if (championId > 0)
                         {
-                            (championId, skinId) = await GameChampionAsync(puuid);
                             discordChampionId = championId;
                             discordSkinId = skinId;
+                        }
+                        else
+                        {
+                            championId = discordChampionId;
+                            skinId = discordSkinId;
                         }
                         break;
 

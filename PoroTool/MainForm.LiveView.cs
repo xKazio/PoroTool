@@ -41,6 +41,9 @@ namespace PoroTool
             liveSettings = LiveSettings.Load();
             league.OnConnected += OnLiveConnected;
             league.GameflowPhaseChanged += OnGameflowPhase;
+            // A closed client sends no phase event; without this the app would
+            // still think it is in champ select (reveal, last-second dodge).
+            league.OnDisconnected += () => OnGameflowPhase("None");
             InitRagequeue();
         }
 

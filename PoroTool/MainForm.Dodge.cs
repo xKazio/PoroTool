@@ -27,11 +27,19 @@ namespace PoroTool
         private const string QuitChampSelectUrl = "/lol-lobby-team-builder/champ-select/v1/session/quit";
         private static readonly string[] LeagueProcessNames = { "LeagueClient", "LeagueClientUx", "LeagueClientUxRender" };
 
+        // Below this much time left in finalization League is NOT closed any
+        // more: the client leaves champ select within a fraction of a second
+        // of being told to quit, but if the game gets created first, closing
+        // it is a leave (LeaverBuster), which is far worse than a dodge.
+        private const int MinRestartMsLeft = 2000;
+
         private int dodgeBusy;
 
-        /// <summary>True from closing League for a dodge until it is back,
-        /// so the "client closed" status doesn't read like a crash.</summary>
-        private volatile bool restartDodgeInProgress;
+        /// <summary>Until when (UTC ticks) a closed/reconnecting client is the
+        /// restart-dodge at work, so the status doesn't read like a crash.</summary>
+        private long restartDodgeUntilTicks;
+
+        private bool RestartDodgeWindowOpen => DateTime.UtcNow.Ticks < Interlocked.Read(ref restartDodgeUntilTicks);
 
         /// <summary>Error text of the last failed quit request, for the status bar.</summary>
         private string lastDodgeError = "";
@@ -73,7 +81,10 @@ namespace PoroTool
                     Log.Write("dodge: quit request failed: " + ex.Message);
                 }
 
-                if (!await InChampSelectAsync()) return DodgeOutcome.Left;
+                // Only a phase the client actually reported counts as "left";
+                // a failed check must not skip the fallback.
+                string phaseNow = await PhaseAsync();
+                if (phaseNow != null && phaseNow != "ChampSelect") return DodgeOutcome.Left;
                 if (!allowRestart) return DodgeOutcome.Failed;
 
                 // 2) Close League and bring it back.
@@ -85,16 +96,23 @@ namespace PoroTool
             }
         }
 
-        private async Task<bool> InChampSelectAsync()
+        /// <summary>The gameflow phase, or null when it couldn't be read.</summary>
+        private async Task<string> PhaseAsync()
         {
             try
             {
-                return league.IsConnected && await league.Get("/lol-gameflow/v1/gameflow-phase") is string phase && phase == "ChampSelect";
+                if (!league.IsConnected) return null;
+                return await WithTimeout(league.Get("/lol-gameflow/v1/gameflow-phase"), 3000, (object)null) as string;
             }
             catch
             {
-                return false;
+                return null;
             }
+        }
+
+        private async Task<bool> InChampSelectAsync()
+        {
+            return await PhaseAsync() == "ChampSelect";
         }
 
         private async Task<bool> WaitUntilOutOfChampSelectAsync(int timeoutMs)
@@ -102,32 +120,59 @@ namespace PoroTool
             var watch = Stopwatch.StartNew();
             while (watch.ElapsedMilliseconds < timeoutMs)
             {
-                if (!await InChampSelectAsync()) return true;
+                string phase = await PhaseAsync();
+                if (phase != null && phase != "ChampSelect") return true;
                 await Task.Delay(150);
             }
             return false;
         }
 
+        /// <summary>Waits for a request at most <paramref name="ms"/>; a slow or failed one yields the fallback.</summary>
+        private static async Task<T> WithTimeout<T>(Task<T> task, int ms, T fallback)
+        {
+            if (await Task.WhenAny(task, Task.Delay(ms)) != task)
+            {
+                // Observe a late failure so it doesn't surface as unobserved.
+                _ = task.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+                return fallback;
+            }
+            try { return await task; }
+            catch { return fallback; }
+        }
+
         private async Task<DodgeOutcome> RestartDodgeAsync(int gracefulMs)
         {
+            // Never close League once the game is about to be created: that
+            // would turn the dodge into leaving the game.
+            var timer = await WithTimeout(ChampSelectTimerAsync(), 1500, (Phase: "", MsLeft: 0L, QuitAllowed: false));
+            if (timer.Phase == "GAME_STARTING" || (timer.Phase == "FINALIZATION" && timer.MsLeft < MinRestartMsLeft))
+            {
+                lastDodgeError = "too late - the game is about to start, and closing League now would count as leaving the game";
+                Log.Write("dodge: restart skipped, " + timer.MsLeft + " ms left in " + timer.Phase);
+                return DodgeOutcome.Failed;
+            }
+
             // Everything needed to start League again has to be read now:
             // once it closes, its API and command line are gone.
             string riotPort = league.LastRiotClientPort, riotToken = league.LastRiotClientToken;
             string patchline = "live";
             try
             {
-                if (await league.Get("/system/v1/builds") is JsonObject builds && StringOf(builds, "patchline").Length > 0)
+                if (await WithTimeout(league.Get("/system/v1/builds"), 800, (object)null) is JsonObject builds &&
+                    StringOf(builds, "patchline").Length > 0)
                     patchline = StringOf(builds, "patchline");
             }
             catch { }
 
-            restartDodgeInProgress = true;
+            Interlocked.Exchange(ref restartDodgeUntilTicks, DateTime.UtcNow.AddMinutes(3).Ticks);
             SetStatusSafe("Dodging: closing the League client (it starts again by itself)...", StatusKind.Info);
-            Log.Write("dodge: quit refused, restarting the client (graceful " + gracefulMs + " ms, patchline " + patchline + ")");
+            Log.Write("dodge: quit refused, restarting the client (graceful " + gracefulMs + " ms, patchline " + patchline + ", " +
+                      timer.MsLeft + " ms left in " + timer.Phase + ")");
 
+            // Don't let a slow answer eat into the time before the forced close.
             try
             {
-                var (status, _) = await league.Request("POST", "/process-control/v1/process/quit", null);
+                var (status, _) = await WithTimeout(league.Request("POST", "/process-control/v1/process/quit", null), 1000, (-1, ""));
                 Log.Write("dodge: process quit -> HTTP " + status);
             }
             catch (Exception ex)
@@ -142,7 +187,7 @@ namespace PoroTool
                 KillLeagueProcesses();
                 if (!await WaitForLeagueExitAsync(10000))
                 {
-                    restartDodgeInProgress = false;
+                    Interlocked.Exchange(ref restartDodgeUntilTicks, 0);
                     lastDodgeError = "the League client could not be closed (try running Poro Tool as administrator)";
                     Log.Write("dodge: client did not exit");
                     return DodgeOutcome.Failed;
@@ -161,13 +206,9 @@ namespace PoroTool
 
             if (!relaunched)
             {
-                restartDodgeInProgress = false;
+                Interlocked.Exchange(ref restartDodgeUntilTicks, 0);
                 return DodgeOutcome.RestartedNoRelaunch;
             }
-
-            // Clear the flag if the client never reconnects, so a later
-            // unrelated close isn't reported as a dodge restart.
-            _ = Task.Delay(TimeSpan.FromMinutes(3)).ContinueWith(_ => restartDodgeInProgress = false);
             return DodgeOutcome.Restarted;
         }
 
@@ -394,6 +435,8 @@ namespace PoroTool
 
                         if (timer.MsLeft <= fireAt)
                         {
+                            // Unticked while the session request was in flight.
+                            if (token.IsCancellationRequested || !dodgeArmed) return;
                             Log.Write("last-second dodge: firing with " + timer.MsLeft + " ms left (quit allowed: " + timer.QuitAllowed + ")");
                             var outcome = await DodgeAsync(allowRestart: true,
                                 gracefulMs: (int)Math.Max(300, Math.Min(1500, timer.MsLeft - 2500)));
