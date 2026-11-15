@@ -512,11 +512,47 @@ namespace PoroTool
             }
         }
 
+        // ---------- MENTAL mode ----------
+
+        private const int SoloQueueId = 420;
+
+        /// <summary>
+        /// MENTAL mode: the moment a Ranked Solo/Duo search starts, it is
+        /// cancelled and you're back in the lobby. Other queues are untouched.
+        /// </summary>
+        private async Task MentalCheckAsync()
+        {
+            if (liveSettings == null || !liveSettings.MentalMode || !league.IsConnected) return;
+            try
+            {
+                if (!(await league.Get("/lol-lobby/v2/lobby") is JsonObject lobby) ||
+                    !(lobby.TryGetValue("gameConfig", out var gv) && gv is JsonObject config) ||
+                    LongOf(config, "queueId") != SoloQueueId)
+                    return;
+
+                var (status, content) = await league.Request("DELETE", "/lol-lobby/v2/lobby/matchmaking/search", null);
+                Log.Write("MENTAL: cancelled a Solo/Duo search -> HTTP " + status + " " + Log.Snippet(content));
+                bool ok = status >= 200 && status < 300;
+                SetStatusSafe(ok ? "MENTAL: Solo/Duo is off limits today. Back to the lobby - touch some grass."
+                                 : "MENTAL: could not cancel the Solo/Duo queue (HTTP " + status + ").",
+                              ok ? StatusKind.Info : StatusKind.Error);
+            }
+            catch (Exception ex)
+            {
+                Log.Write("MENTAL: " + ex.Message);
+            }
+        }
+
         // ---------- Starting the queue ----------
 
         private async Task RagequeueNowAsync(QueueChoice queue)
         {
             if (!EnsureConnected()) return;
+            if (liveSettings.MentalMode && queue.Id == SoloQueueId)
+            {
+                SetStatus("MENTAL mode is on - no Solo/Duo for you. Untick it here to play ranked again.", StatusKind.Info);
+                return;
+            }
 
             try
             {
@@ -703,6 +739,26 @@ namespace PoroTool
                 dodgeListBox.Items.Remove(choice);
             };
 
+            var mentalCheck = new CheckBox
+            {
+                Text = "MENTAL - block Ranked Solo/Duo (queueing for it puts you straight back in the lobby)",
+                Checked = liveSettings.MentalMode,
+                Margin = new Padding(0, 0, 0, 12),
+                AutoSize = true
+            };
+            Theme.StyleCheckBox(mentalCheck);
+            mentalCheck.AutoSize = true;
+            mentalCheck.CheckedChanged += (s, e) =>
+            {
+                liveSettings.MentalMode = mentalCheck.Checked;
+                liveSettings.Save();
+                SetStatus(mentalCheck.Checked ? "MENTAL on: Solo/Duo is blocked. Every other queue still works."
+                                              : "MENTAL off: Solo/Duo is allowed again.",
+                          mentalCheck.Checked ? StatusKind.Success : StatusKind.Info);
+                // Already searching for Solo/Duo when it was switched on.
+                if (mentalCheck.Checked && currentPhase == "Matchmaking") _ = MentalCheckAsync();
+            };
+
             var goButton = new Button { Text = "Ragequeue now", Size = new Size(220, 40), Margin = new Padding(0, 0, 0, 8) };
             Theme.StylePrimaryButton(goButton);
             goButton.Click += async (s, e) =>
@@ -739,6 +795,7 @@ namespace PoroTool
             layout.Controls.Add(dodgeListBox);
             layout.Controls.Add(autoDodgeCheck);
             layout.Controls.Add(dodgeOnceCheck);
+            layout.Controls.Add(mentalCheck);
             layout.Controls.Add(goButton);
             layout.Controls.Add(MakeMutedLabel("Normal queue rules still apply (dodge timers, autofill). ARAM and Swiftplay have no pick phase, so auto pick/ban/dodge simply do nothing there. " +
                                                "Riot no longer lets apps leave ranked/normal champ select, so an auto-dodge there closes League and starts it again before re-queueing.", 460));

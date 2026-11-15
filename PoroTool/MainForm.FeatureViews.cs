@@ -82,12 +82,16 @@ namespace PoroTool
 
         private Label MakeMutedLabel(string text, int width)
         {
+            // Tall enough for however many lines the text wraps to (at least
+            // the two lines every description used to get).
+            var measured = TextRenderer.MeasureText(text, Theme.StatusFont, new Size(width, int.MaxValue),
+                                                    TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl);
             return new Label
             {
                 Text = text,
                 AutoSize = false,
                 Width = width,
-                Height = 34,
+                Height = Math.Max(34, measured.Height + 4),
                 Font = Theme.StatusFont,
                 ForeColor = Theme.TextMuted,
                 Margin = new Padding(0, 0, 0, 8)

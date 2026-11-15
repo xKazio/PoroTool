@@ -898,9 +898,27 @@ namespace PoroTool
             }
             else
             {
+                // The client uses uint64 max (18446744073709551615) as "never"
+                // (e.g. inactiveDate), which doesn't fit a long; keep it as
+                // ulong instead of failing the whole document.
                 long number;
-                success = long.TryParse(new string(json, index, charLength), NumberStyles.Any, CultureInfo.InvariantCulture, out number);
-                returnNumber = number;
+                ulong unsignedNumber;
+                double bigNumber;
+                if (long.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out number))
+                {
+                    success = true;
+                    returnNumber = number;
+                }
+                else if (ulong.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out unsignedNumber))
+                {
+                    success = true;
+                    returnNumber = unsignedNumber;
+                }
+                else
+                {
+                    success = double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out bigNumber);
+                    returnNumber = bigNumber;
+                }
             }
             index = lastIndex + 1;
             return returnNumber;

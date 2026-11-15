@@ -27,6 +27,8 @@ namespace PoroTool
         public bool AutoDodge { get; set; }
         public bool DodgeOnce { get; set; } = true;
         public List<long> DodgeChampionIds { get; set; } = new List<long>();
+        /// <summary>MENTAL mode: Ranked Solo/Duo is off limits - queueing for it is cancelled.</summary>
+        public bool MentalMode { get; set; }
 
         // Discord Rich Presence. On by default: it needs no setup.
         public bool DiscordEnabled { get; set; } = true;
@@ -57,6 +59,7 @@ namespace PoroTool
                 if (json.TryGetValue("autoBan", out var ab)) settings.AutoBan = Convert.ToBoolean(ab);
                 if (json.TryGetValue("autoDodge", out var ad)) settings.AutoDodge = Convert.ToBoolean(ad);
                 if (json.TryGetValue("dodgeOnce", out var d1)) settings.DodgeOnce = Convert.ToBoolean(d1);
+                if (json.TryGetValue("mentalMode", out var mm)) settings.MentalMode = Convert.ToBoolean(mm);
                 if (json.TryGetValue("dodgeChampionIds", out var dc) && dc is JsonArray dodgeIds)
                     settings.DodgeChampionIds = dodgeIds.Select(Convert.ToInt64).ToList();
                 if (json.TryGetValue("discordEnabled", out var de)) settings.DiscordEnabled = Convert.ToBoolean(de);
@@ -94,6 +97,7 @@ namespace PoroTool
                     ["autoDodge"] = AutoDodge,
                     ["dodgeOnce"] = DodgeOnce,
                     ["dodgeChampionIds"] = dodgeIds,
+                    ["mentalMode"] = MentalMode,
                     ["discordEnabled"] = DiscordEnabled,
                     ["discordShowRank"] = DiscordShowRank,
                     ["discordRankQueue"] = DiscordRankQueue,

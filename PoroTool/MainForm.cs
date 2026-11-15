@@ -69,10 +69,13 @@ namespace PoroTool
             foreach (var button in new[] { loadChampionsButton, loadSkinsButton, loadEmotesButton, loadWardsButton,
                                            loadIconsButton, loadCompanionsButton, loadEternalsButton, loadChestsButton,
                                            chatRankButton, backgroundButton, statusButton, purchaseDatesButton,
-                                           friendsCleanupButton, customApiButton, lobbyRevealButton, ragequeueButton,
-                                           discordPresenceButton, removeTokensButton })
+                                           buyChampionsButton, friendsCleanupButton, customApiButton, lobbyRevealButton,
+                                           ragequeueButton, discordPresenceButton, removeTokensButton })
             {
                 Theme.StyleButton(button);
+                // Compact the sidebar so every entry fits without a scrollbar.
+                button.Height = 27;
+                button.Margin = new Padding(0, 0, 0, 3);
             }
             Theme.StylePrimaryButton(processButton);
             Theme.StyleTextButton(legalNoteButton);

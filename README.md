@@ -10,6 +10,7 @@ A small desktop utility for League of Legends that does the boring loot work for
 - **Profile background** — browse every champion's skin splashes and set any of them as your profile background.
 - **Chat status** — set a custom status message.
 - **Purchase dates** — a sortable list of your champions with the date you bought them.
+- **Buy missing champions** — buys every champion you don't own with Blue Essence, cheapest first, and leaves the rest when the essence runs out. Never spends RP.
 - **Friends cleanup** — search and tick friends on a checklist, then bulk unfriend or block them in one go.
 - **API console** — send raw requests to the LCU and inspect the responses.
 - **Lobby reveal** — shows your champ-select teammates' Riot IDs (even while names are hidden), read from your local client.
@@ -17,6 +18,7 @@ A small desktop utility for League of Legends that does the boring loot work for
 - **Multi-search** — open an OP.GG / DeepLoL / U.GG / Tracker.gg lookup for the revealed players.
 - **Dodge** — leave champ select now, or arm a last-second dodge that fires just before the game starts. Riot no longer lets apps leave ranked/normal champ select, so there Poro Tool closes League and starts it again (a normal dodge, ~15–30 s); where the client still allows quitting it just leaves.
 - **Ragequeue** — one click to start your usual queue, with optional auto pick & lock, auto ban and auto dodge (re-queues after the dodge timer).
+- **MENTAL** — for your own good: blocks Ranked Solo/Duo. Start that queue and you're right back in the lobby; every other queue works.
 - **Discord status** — shows League on your Discord profile with your rank and, as the big image, your summoner icon or the champion / skin you're playing. No setup: it connects on its own.
 - **Update notifications** — tells you when a new version is on GitHub and opens the release page.
 

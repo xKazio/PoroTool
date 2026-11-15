@@ -67,6 +67,7 @@ namespace PoroTool
             currentPhase = phase ?? "";
 
             if (phase == "ReadyCheck") _ = AutoAcceptAsync();
+            if (phase == "Matchmaking") _ = MentalCheckAsync();
 
             if (phase == "ChampSelect") StartReveal();
             else StopReveal();

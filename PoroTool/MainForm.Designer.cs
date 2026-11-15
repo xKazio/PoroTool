@@ -45,6 +45,7 @@
             this.backgroundButton = new System.Windows.Forms.Button();
             this.statusButton = new System.Windows.Forms.Button();
             this.purchaseDatesButton = new System.Windows.Forms.Button();
+            this.buyChampionsButton = new System.Windows.Forms.Button();
             this.friendsCleanupButton = new System.Windows.Forms.Button();
             this.customApiButton = new System.Windows.Forms.Button();
             this.liveSectionLabel = new System.Windows.Forms.Label();
@@ -97,6 +98,7 @@
             this.sidebarLayout.Controls.Add(this.backgroundButton);
             this.sidebarLayout.Controls.Add(this.statusButton);
             this.sidebarLayout.Controls.Add(this.purchaseDatesButton);
+            this.sidebarLayout.Controls.Add(this.buyChampionsButton);
             this.sidebarLayout.Controls.Add(this.friendsCleanupButton);
             this.sidebarLayout.Controls.Add(this.customApiButton);
             this.sidebarLayout.Controls.Add(this.liveSectionLabel);
@@ -235,6 +237,15 @@
             this.purchaseDatesButton.TabIndex = 15;
             this.purchaseDatesButton.Text = "Purchase dates";
             this.purchaseDatesButton.Click += new System.EventHandler(this.purchaseDatesButton_Click);
+            //
+            // buyChampionsButton
+            //
+            this.buyChampionsButton.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.buyChampionsButton.Name = "buyChampionsButton";
+            this.buyChampionsButton.Size = new System.Drawing.Size(196, 30);
+            this.buyChampionsButton.TabIndex = 23;
+            this.buyChampionsButton.Text = "Buy missing champions";
+            this.buyChampionsButton.Click += new System.EventHandler(this.buyChampionsButton_Click);
             //
             // friendsCleanupButton
             //
@@ -451,6 +462,7 @@
         private System.Windows.Forms.Button backgroundButton;
         private System.Windows.Forms.Button statusButton;
         private System.Windows.Forms.Button purchaseDatesButton;
+        private System.Windows.Forms.Button buyChampionsButton;
         private System.Windows.Forms.Button friendsCleanupButton;
         private System.Windows.Forms.Button customApiButton;
         private System.Windows.Forms.Label liveSectionLabel;
